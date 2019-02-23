@@ -128,7 +128,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         Pf[:,:,t] *= 0.5;
         Pf[:,:,t] += Pf[:,:,t]';
 
-        # Initialise lag-one covariance
+        # Initialise lag-one covariance as in Shumway and Stoffer (2011, pp. 334)
         if t == T && flag_lag1_cov == true
             PPs[:,:,t] = C*Pf[:,:,t-1] - K_t*B_t*C*Pf[:,:,t-1];
         end
@@ -180,7 +180,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
             Ps_0 += Ps_0';
         end
 
-        # Lag-one covariance smoother, Shumway and Stoffer (2011, pp. 334)
+        # Lag-one covariance smoother as in Shumway and Stoffer (2011, pp. 334)
         if t >= 2 && flag_lag1_cov == true
 
             # J_{t-2}
