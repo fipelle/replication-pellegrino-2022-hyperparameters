@@ -21,11 +21,12 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 - `𝔛0`: Mean vector for the states at time t=0
 - `P0`: Covariance matrix for the states at time t=0
 - `loglik_flag`: True to estimate the loglikelihood (default: false)
+- `flag_lag1_cov`: True to estimate the lag-one covariance smoother (default: false)
 
 # References
 Shumway and Stoffer (2011, chapter 6).
 """
-function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray, V::FloatArray, 𝔛0::FloatVector, P0::FloatArray; loglik_flag::Bool=false)
+function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray, V::FloatArray, 𝔛0::FloatVector, P0::FloatArray; loglik_flag::Bool=false, flag_lag1_cov::Bool=false)
 
     #=
     --------------------------------------------------------------------------------------------------------------------------------------
@@ -128,7 +129,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         Pf[:,:,t] += Pf[:,:,t]';
 
         # Initialise lag-one covariance
-        if t == T
+        if t == T && flag_lag1_cov == true
             PPs[:,:,t] = C*Pf[:,:,t-1] - K_t*B_t*C*Pf[:,:,t-1];
         end
 
@@ -180,7 +181,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         end
 
         # Lag-one covariance smoother, Shumway and Stoffer (2011, pp. 334)
-        if t >= 2
+        if t >= 2 && flag_lag1_cov == true
 
             # J_{t-2}
             if t > 2
