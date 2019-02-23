@@ -1,6 +1,6 @@
 """
 """
-function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb=true)
 
     #=
     --------------------------------------------------------------------------------------------------------------------------------
@@ -71,16 +71,18 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     Σ̂_init = (V̂_init*V̂_init')./(T-p);
 
     # State-space parameters
-    B̂ = [Matrix{Float64}(I, n, n) zeros(n, np-n)];
+    B̂ = [Matrix{Float64}(I, n, n) zeros(n, np)];
     R̂ = Matrix{Float64}(I, n, n).*eps();
-    Ĉ, V̂ = companion_form_VAR(Ψ̂_init, Σ̂_init);
+    Ĉ, V̂ = ext_companion_form(Ψ̂_init, Σ̂_init);
 
     # Initial conditions
-    𝔛0̂ = zeros(np);
-    P0̂ = reshape((Matrix(I, np^2, np^2)-kron(Ĉ, Ĉ))\V̂[:], np, np);
+    𝔛0̂ = zeros(np+n);
+    P0̂ = reshape((Matrix(I, (np+n)^2, (np+n)^2)-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
 
     # Initialise additional variables
-    Φ̂ᵏ = 1 ./ (abs.(Ĉ[1:n, :]).+eps());
+    Ψ̂ = Ĉ[1:n, 1:np];
+    Σ̂ = V̂[1:n, 1:n];
+    Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+eps());
 
 
     #=
@@ -97,12 +99,12 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     for iter=1:max_iter
 
         # Run Kalman filter and smoother
-        𝔛ŝ, Pŝ, PPŝ, 𝔛s_0̂, Ps_0̂, _, _, _, loglik = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=true);
+        𝔛ŝ, Pŝ, _, 𝔛s_0̂, Ps_0̂, _, _, _, loglik = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=true);
 
         if iter > prerun
 
             # New penalised loglikelihood
-            pen_loglik_new = loglik - 0.5*tr(V̂[1:n, 1:n]\((1-α).*Ĉ[1:n, :]*Γ*Ĉ[1:n, :]' + α.*(Ĉ[1:n, :].*Φ̂ᵏ)*Γ*Ĉ[1:n, :]'));
+            pen_loglik_new = loglik - 0.5*tr(Σ̂\((1-α).*Ψ̂ + α.*(Ψ̂.*Φ̂ᵏ))*Γ*Ψ̂');
 
             if verb == true
                 println("ecm > iter=$(iter-prerun), penalised loglik=$(round(pen_loglik_new, digits=5))");
@@ -138,27 +140,33 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
             Ê += 𝔛ŝ[1:n,t]*𝔛ŝ[1:n,t]' + Pŝ[1:n,1:n,t];
 
             if t == 1
-                F̂ += 𝔛ŝ[1:n,t]*𝔛0̂' + PPŝ[1:n,:,t];
-                Ĝ += 𝔛0̂*𝔛0̂' + P0̂;
+                F̂ += 𝔛ŝ[1:n,t]*𝔛0̂[1:np]' + Pŝ[1:n,n+1:end,t];
+                Ĝ += 𝔛0̂[1:np]*𝔛0̂[1:np]' + P0̂[1:np,1:np];
 
             else
-                F̂ += 𝔛ŝ[1:n,t]*𝔛ŝ[:,t-1]' + PPŝ[1:n,:,t];
-                Ĝ += 𝔛ŝ[:,t-1]*𝔛ŝ[:,t-1]' + Pŝ[:,:,t-1];
+                F̂ += 𝔛ŝ[1:n,t]*𝔛ŝ[1:np,t-1]' + Pŝ[1:n,n+1:end,t];
+                Ĝ += 𝔛ŝ[1:np,t-1]*𝔛ŝ[1:np,t-1]' + Pŝ[1:np,1:np,t-1];
             end
         end
 
         # VAR(p) coefficients
-        Φ̂ᵏ = 1 ./ (abs.(Ĉ[1:n, :]).+eps());
+        Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+eps());
         for i=1:n
-            Ĉ[i,:] = (Ĝ + Γ.*((1-α).*Matrix(I, np, np) + α.*Φ̂ᵏ[i,:]*ones(1, np)))\F̂[i,:];
+            Ĉ[i,1:np] = (Ĝ + Γ.*((1-α).*Matrix(I, np, np) + α.*Φ̂ᵏ[i,:]*ones(1, np)))\F̂[i,:];
         end
 
+        # Update Ψ̂
+        Ψ̂ = Ĉ[1:n, 1:np];
+
         # Covariance matrix of the VAR(p) residuals
-        V̂[1:n, 1:n] = (1/T).*(Ê-F̂*Ĉ[1:n,:]'-Ĉ[1:n,:]*F̂'+Ĉ[1:n,:]*Ĝ*Ĉ[1:n,:]' + Ĉ[1:n,:]*Γ*((1-α).*Ĉ[1:n,:] + α.*Ĉ[1:n,:].*Φ̂ᵏ)');
+        V̂[1:n, 1:n] = (1/T).*(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)');
 
         # Remove possible source of numerical instabilities in V̂
         V̂[1:n, 1:n] *= 0.5;
         V̂[1:n, 1:n] += V̂[1:n, 1:n]';
+
+        # Update Σ̂
+        Σ̂ = V̂[1:n, 1:n];
     end
 
     # Replace very small numbers with zeros
@@ -166,5 +174,5 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     V̂[abs.(V̂) .< eps()] .= 0.0;
 
     # Return output
-    return B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init;
+    return B̂[:,1:np], R̂, Ĉ[1:np,1:np], V̂[1:np,1:np], 𝔛0̂[1:np], P0̂[1:np,1:np], Ψ̂_init, Σ̂_init;
 end

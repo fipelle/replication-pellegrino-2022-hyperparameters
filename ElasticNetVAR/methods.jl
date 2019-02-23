@@ -186,7 +186,7 @@ function lag(X::JArray, p::Int64)
 end
 
 
-function companion_form_VAR(Ψ::Array{Float64,2}, Σ::Array{Float64})
+function companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
     # Dimensions
     n = size(Σ,2);
@@ -196,6 +196,22 @@ function companion_form_VAR(Ψ::Array{Float64,2}, Σ::Array{Float64})
     # Companion form VAR(p)
     C = [Ψ; Matrix(I, np_1, np_1) zeros(np_1, n)];
     V = [Σ zeros(n, np_1); zeros(np_1, n*p)];
+
+    # Return output
+    return C, V;
+end
+
+
+function ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+
+    # Dimensions
+    n = size(Σ,2);
+    p = Int64(size(Ψ,2)/n);
+    np = n*p;
+
+    # Companion form VAR(p)
+    C = [Ψ zeros(n, n); Matrix(I, np, np) zeros(np, n)];
+    V = [Σ zeros(n, np); zeros(np, np+n)];
 
     # Return output
     return C, V;
