@@ -70,6 +70,11 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     V̂_init = Y_init - Ψ̂_init*X_init;
     Σ̂_init = (V̂_init*V̂_init')./(T-p);
 
+    #=
+    The state vector includes additional n terms with respect to the standard VAR companion form representation.
+    This is to estimate the lag-one covariance smoother as in Watson and Engle (1983).
+    =#
+
     # State-space parameters
     B̂ = [Matrix{Float64}(I, n, n) zeros(n, np)];
     R̂ = Matrix{Float64}(I, n, n).*eps();
@@ -152,7 +157,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         # VAR(p) coefficients
         Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+eps());
         for i=1:n
-            Ĉ[i,1:np] = (Ĝ + Γ.*((1-α).*Matrix(I, np, np) + α.*Φ̂ᵏ[i,:]*ones(1, np)))\F̂[i,:];
+            Ĉ[i, 1:np] = (Ĝ + Γ.*((1-α).*Matrix(I, np, np) + α.*Φ̂ᵏ[i, :]*ones(1, np)))\F̂[i,:];
         end
 
         # Update Ψ̂
@@ -173,6 +178,8 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     Ĉ[abs.(Ĉ) .< eps()] .= 0.0;
     V̂[abs.(V̂) .< eps()] .= 0.0;
 
-    # Return output
+    #=
+    The output excludes the additional n terms required to estimate the lag-one covariance smoother as described above.
+    =#
     return B̂[:,1:np], R̂, Ĉ[1:np,1:np], V̂[1:np,1:np], 𝔛0̂[1:np], P0̂[1:np,1:np], Ψ̂_init, Σ̂_init;
 end
