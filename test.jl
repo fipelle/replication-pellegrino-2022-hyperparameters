@@ -13,7 +13,7 @@ Y=Y[:,1:3]' |> JArray{Float64,2};
 # Hyperparameters
 p=3;
 λ=2;
-α=1.0;
+α=0.5;
 β=10.0;
 
 # Run

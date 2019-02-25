@@ -175,6 +175,17 @@ Base: time series
 --------------------------------------------------------------------------------------------------------------------------------
 =#
 
+function lag(X::Array, p::Int64)
+
+    # VAR(p) data
+    X_t = X[:, 1+p:end];
+    X_lagged = vcat([X[:, p-j+1:end-j] for j=1:p]...);
+
+    # Return output
+    return X_t, X_lagged;
+end
+
+
 function lag(X::JArray, p::Int64)
 
     # VAR(p) data
