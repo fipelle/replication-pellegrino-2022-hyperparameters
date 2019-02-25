@@ -31,7 +31,7 @@ function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number
     np = size(X,1);
 
     # ε
-    ε = 1e-8;
+    ε = eps();
 
 
     #=

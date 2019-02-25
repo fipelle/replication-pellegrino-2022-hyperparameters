@@ -8,12 +8,12 @@ using FileIO;
 # Data
 Y=DataFrame(load("./data/data.csv")) |> JArray{Float64,2};
 Y=standardize(Y);
-Y=Y[:,1:3]' |> JArray{Float64,2};
+Y=Y' |> JArray{Float64,2};
 
 # Hyperparameters
-p=5;
-λ=2;
-α=0.5;
+p=3;
+λ=20;
+α=1.0;
 β=100.0;
 
 # Run
