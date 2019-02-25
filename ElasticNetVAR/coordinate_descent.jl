@@ -1,6 +1,6 @@
 """
 """
-function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number, α::Number, β::Number; c̄::Float64=0.0, tol::Float64=1e-4, max_iter::Int64=1000, verb=true)
+function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, verb=true)
 
     #=
     -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number
                 elseif XV̂ᵢⱼ < -thresh
                     Ψ̂[i, j] = (XV̂ᵢⱼ+thresh)/(1 + hyper_prod*(1-α));
                 else
-                    Ψ̂[i, j] = c̄;
+                    Ψ̂[i, j] = 0.0;
                 end
 
                 # Update objfun_new
