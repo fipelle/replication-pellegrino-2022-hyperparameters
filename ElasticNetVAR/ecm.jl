@@ -33,10 +33,12 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     # Dimensions
     n, T = size(Y);
     np = n*p;
-
     if n < 2
         error("This code is not compatible with univariate autoregressions");
     end
+
+    # ε
+    ε = 1e-8;
 
     # Gamma matrix
     Γ = [];
@@ -75,7 +77,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
     # Initialise using the coordinate descent algorithm
     println("ecm > initialisation");
-    Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, X_init, λ, α, β, tol=tol, max_iter=max_iter, verb=false);
+    Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, X_init, λ, α, β, tol=tol, max_iter=max_iter, verb=false, c̄=ε);
 
 
     #=
@@ -91,7 +93,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
     # State-space parameters
     B̂ = [Matrix{Float64}(I, n, n) zeros(n, np)];
-    R̂ = Matrix{Float64}(I, n, n).*eps();
+    R̂ = Matrix{Float64}(I, n, n).*ε;
     Ĉ, V̂ = ext_companion_form(Ψ̂_init, Σ̂_init);
 
     # Initial conditions
@@ -101,7 +103,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     # Initialise additional variables
     Ψ̂ = Ĉ[1:n, 1:np];
     Σ̂ = V̂[1:n, 1:n];
-    Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+eps());
+    Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+ε);
 
     # ECM controls
     pen_loglik_old = -Inf;
@@ -130,7 +132,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
             # Stop when the ECM algorithm converges
             if iter > prerun+1
-                if (pen_loglik_new-pen_loglik_old)./(abs(pen_loglik_old)+eps()) <= tol
+                if (pen_loglik_new-pen_loglik_old)./(abs(pen_loglik_old)+ε) <= tol
                     if verb == true
                         println("ecm > converged!");
                         println("");
@@ -169,8 +171,8 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         end
 
         # VAR(p) coefficients
-        Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+eps());
-        ind_sparse = Ĉ .< eps();
+        Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+ε);
+        ind_sparse = Ĉ .< ε;
         for i=1:n
             Ĉ[i, 1:np] = (Ĝ + Γ.*((1-α).*Matrix(I, np, np) + α.*Φ̂ᵏ[i, :]*ones(1, np)))\F̂[i,:];
         end
@@ -191,8 +193,8 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     end
 
     # Replace very small numbers with zeros
-    Ĉ[abs.(Ĉ) .< eps()] .= 0.0;
-    V̂[abs.(V̂) .< eps()] .= 0.0;
+    Ĉ[abs.(Ĉ) .< ε] .= 0.0;
+    V̂[abs.(V̂) .< ε] .= 0.0;
 
     #=
     The output excludes the additional n terms required to estimate the lag-one covariance smoother as described above.
