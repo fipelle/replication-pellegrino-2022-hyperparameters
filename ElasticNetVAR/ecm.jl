@@ -68,13 +68,6 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     # VAR(p) data
     Y_init, X_init = lag(Y_init, p);
 
-    # Estimate ridge VAR(p)
-    #=
-    Ψ̂_init = Y_init*X_init'/(X_init*X_init' + Γ);
-    V̂_init = Y_init - Ψ̂_init*X_init;
-    Σ̂_init = (V̂_init*V̂_init')./(T-p);
-    =#
-
     # Initialise using the coordinate descent algorithm
     println("ecm > initialisation");
     Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, X_init, λ, α, β, tol=tol, max_iter=max_iter, verb=false);
@@ -191,8 +184,6 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         Σ̂ = V̂[1:n, 1:n];
     end
 
-    #=
-    The output excludes the additional n terms required to estimate the lag-one covariance smoother as described above.
-    =#
+    # The output excludes the additional n terms required to estimate the lag-one covariance smoother as described above.
     return B̂[:,1:np], R̂, Ĉ[1:np,1:np], V̂[1:np,1:np], 𝔛0̂[1:np], P0̂[1:np,1:np], Ψ̂_init, Σ̂_init;
 end
