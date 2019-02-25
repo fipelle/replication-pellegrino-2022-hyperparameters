@@ -1,6 +1,6 @@
 """
 """
-function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, verb=true)
+function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number, α::Number, β::Number; c̄::Float64=0.0, tol::Float64=1e-4, max_iter::Int64=1000, verb=true)
 
     #=
     -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -29,6 +29,9 @@ function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number
     # Dimensions
     n, T_minus_p = size(Y);
     np = size(X,1);
+
+    # ε
+    ε = 1e-8;
 
 
     #=
@@ -72,7 +75,7 @@ function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number
                 elseif XV̂ᵢⱼ < -thresh
                     Ψ̂[i, j] = (XV̂ᵢⱼ+thresh)/(1 + hyper_prod*(1-α));
                 else
-                    Ψ̂[i, j] = 0.0;
+                    Ψ̂[i, j] = c̄;
                 end
 
                 # Update objfun_new
@@ -88,7 +91,7 @@ function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number
 
             # Stop when the algorithm converges
             if iter > 1
-                if (objfun_new-objfun_old)./(abs(objfun_old)+eps()) <= tol
+                if (objfun_new-objfun_old)./(abs(objfun_old)+ε) <= tol
                     if verb == true
                         println("coordinate_descent ($i-th row) > converged!");
                     end
@@ -105,7 +108,7 @@ function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number
     if verb == true
         println("");
     end
-    
+
     # Estimate var-cov matrix of the residuals
     V̂ = Y - Ψ̂*X;
     Σ̂ = (V̂*V̂')./T_minus_p;
