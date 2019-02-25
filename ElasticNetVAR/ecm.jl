@@ -170,9 +170,11 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
         # VAR(p) coefficients
         Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+eps());
+        ind_sparse = Ĉ .< eps();
         for i=1:n
             Ĉ[i, 1:np] = (Ĝ + Γ.*((1-α).*Matrix(I, np, np) + α.*Φ̂ᵏ[i, :]*ones(1, np)))\F̂[i,:];
         end
+        Ĉ[ind_sparse] .= 0.0;
 
         # Update Ψ̂
         Ψ̂ = Ĉ[1:n, 1:np];
