@@ -1,6 +1,6 @@
 """
 """
-function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-5, max_iter::Int64=1000, prerun::Int64=2, verb=true)
 
     #=
     -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
     # Initialise using the coordinate descent algorithm
     println("ecm > initialisation");
-    Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, X_init, λ, α, β, tol=tol, max_iter=max_iter, verb=false, c̄=ε);
+    Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, X_init, λ, α, β, tol=tol, max_iter=max_iter, verb=false);
 
 
     #=
@@ -108,6 +108,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     # ECM controls
     pen_loglik_old = -Inf;
     pen_loglik_new = -Inf;
+
 
     #=
     -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -172,11 +173,9 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
         # VAR(p) coefficients
         Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+ε);
-        ind_sparse = Ĉ .< ε;
         for i=1:n
             Ĉ[i, 1:np] = (Ĝ + Γ.*((1-α).*Matrix(I, np, np) + α.*Φ̂ᵏ[i, :]*ones(1, np)))\F̂[i,:];
         end
-        Ĉ[ind_sparse] .= 0.0;
 
         # Update Ψ̂
         Ψ̂ = Ĉ[1:n, 1:np];
@@ -184,17 +183,13 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         # Covariance matrix of the VAR(p) residuals
         V̂[1:n, 1:n] = (1/T).*(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)');
 
-        # Remove possible source of numerical instabilities in V̂
+        # Make sure V̂ is symmetric
         V̂[1:n, 1:n] *= 0.5;
         V̂[1:n, 1:n] += V̂[1:n, 1:n]';
 
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];
     end
-
-    # Replace very small numbers with zeros
-    Ĉ[abs.(Ĉ) .< ε] .= 0.0;
-    V̂[abs.(V̂) .< ε] .= 0.0;
 
     #=
     The output excludes the additional n terms required to estimate the lag-one covariance smoother as described above.
