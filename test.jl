@@ -11,10 +11,10 @@ Y=standardize(Y);
 Y=Y' |> JArray{Float64,2};
 
 # Hyperparameters
-p=3;
-λ=20;
-α=1.0;
-β=100.0;
+p=5;
+λ=0.5;
+α=0.5;
+β=1.5;
 
 # Run
 B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init = ecm(Y, p, λ, α, β);
