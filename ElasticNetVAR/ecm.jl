@@ -49,7 +49,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
             Γ = cat(Γ, (β^i).*Matrix{Float64}(I, n, n), dims=[1,2]);
         end
     end
-    Γ = (λ/np).*Γ;
+    Γ = λ.*Γ;
 
 
     #=

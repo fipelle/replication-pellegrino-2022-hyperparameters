@@ -67,7 +67,7 @@ function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number
                 XV̂ᵢⱼ = sum(V̂ᵢⱼ .* X[j,:])/T_minus_p;
 
                 # Soft-thresholding operator: update for the coefficients
-                hyper_prod = (λ/np)*β^floor((j-1)/n);
+                hyper_prod = λ*β^floor((j-1)/n);
                 thresh = hyper_prod*α;
 
                 if XV̂ᵢⱼ > thresh
