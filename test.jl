@@ -18,3 +18,5 @@ p=5;
 
 # Run
 B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init = ecm(Y, p, λ, α, β);
+
+# test if the standardization is really required
