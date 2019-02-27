@@ -65,15 +65,16 @@ function coordinate_descent(Y::Array{Float64,2}, X::Array{Float64,2}, λ::Number
 
                 # Scalar product between Xⱼ and V̂ᵢⱼ divided by (T-p)
                 XV̂ᵢⱼ = sum(V̂ᵢⱼ .* X[j,:])/T_minus_p;
+                XXⱼ = sum(X[j,:].^2)/T_minus_p;
 
                 # Soft-thresholding operator: update for the coefficients
                 hyper_prod = λ*β^floor((j-1)/n);
                 thresh = hyper_prod*α;
 
                 if XV̂ᵢⱼ > thresh
-                    Ψ̂[i, j] = (XV̂ᵢⱼ-thresh)/(1 + hyper_prod*(1-α));
+                    Ψ̂[i, j] = (XV̂ᵢⱼ-thresh)/(XXⱼ + hyper_prod*(1-α));
                 elseif XV̂ᵢⱼ < -thresh
-                    Ψ̂[i, j] = (XV̂ᵢⱼ+thresh)/(1 + hyper_prod*(1-α));
+                    Ψ̂[i, j] = (XV̂ᵢⱼ+thresh)/(XXⱼ + hyper_prod*(1-α));
                 else
                     Ψ̂[i, j] = 0.0;
                 end
