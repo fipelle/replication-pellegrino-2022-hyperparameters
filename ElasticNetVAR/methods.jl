@@ -175,6 +175,20 @@ Base: time series
 --------------------------------------------------------------------------------------------------------------------------------
 =#
 
+"""
+    lag(X::Array, p::Int64)
+    lag(X::JArray, p::Int64)
+
+Construct the data required to run a standard vector autoregression.
+
+# Arguments
+- `X`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
+- `p`: number of lags in the vector autoregression
+
+# Output
+- `X_{t}`
+- `X_{t-1}`
+"""
 function lag(X::Array, p::Int64)
 
     # VAR(p) data
@@ -184,7 +198,6 @@ function lag(X::Array, p::Int64)
     # Return output
     return X_t, X_lagged;
 end
-
 
 function lag(X::JArray, p::Int64)
 
@@ -197,6 +210,11 @@ function lag(X::JArray, p::Int64)
 end
 
 
+"""
+    companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+
+Construct the companion form parameters of a VAR(p) with coefficients Ψ and var-cov matrix of the residuals Σ.
+"""
 function companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
     # Dimensions
@@ -212,7 +230,11 @@ function companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
     return C, V;
 end
 
+"""
+    companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
+Construct the companion form parameters of a VAR(p) with coefficients Ψ and var-cov matrix of the residuals Σ. The companion form is extend with additional n entries.
+"""
 function ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
     # Dimensions
