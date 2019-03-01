@@ -1,4 +1,21 @@
 """
+    ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+
+Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2019).
+
+# Arguments
+- `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
+- `p`: number of lags in the vector autoregression
+- `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
+- `α`: weight associated to the LASSO component of the elastic-net penalty
+- `β`: additional shrinkage for distant lags (p>1)
+- `tol`: tolerance used to check convergence (default: 1e-4)
+- `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
+- `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
+- `verb`: Verbose output (default: true)
+
+# References
+Pellegrino (2019)
 """
 function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb=true)
 
@@ -65,12 +82,9 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     end
     Y_init = Y_init |> Array{Float64};
 
-    # VAR(p) data
-    Y_init, X_init = lag(Y_init, p);
-
     # Initialise using the coordinate descent algorithm
     println("ecm > initialisation");
-    Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, X_init, λ, α, β, tol=tol, max_iter=max_iter, verb=false);
+    Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, p, λ, α, β, tol=tol, max_iter=max_iter, verb=false);
 
 
     #=

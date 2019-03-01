@@ -1,5 +1,5 @@
 """
-    kalman(...)
+    kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray, V::FloatArray, 𝔛0::FloatVector, P0::FloatArray; loglik_flag::Bool=false, flag_lag1_cov::Bool=false)
 
 Perform the Kalman filter and smoother recursions as in Shumway and Stoffer (2011, chapter 6).
 
