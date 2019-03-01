@@ -249,3 +249,58 @@ function ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
     # Return output
     return C, V;
 end
+
+
+#=
+-------------------------------------------------------------------------------------------------------------------------------
+Combinatorics and probability
+-------------------------------------------------------------------------------------------------------------------------------
+=#
+
+"""
+    combinations(n::Int64, k::Int64)
+
+Compute the binomial coefficient of `n` observations and `k` groups, for big integers.
+
+# Examples
+```jldoctest
+julia> combinations(1000000,100000)
+7.333191945934207610471288280331309569215030711272858517142085449641265002716664e+141178
+```
+"""
+combinations(n::Int64, k::Int64) = factorial(big(n))/(factorial(big(n-k))*factorial(big(k)));
+
+"""
+    rand_without_replacement!(P::Array{Int64,1}, d::Int64)
+
+Draw `length(P)-d` elements from the positional vector `P` without replacement.
+`P` is transformed into the output vector in the process and thus permanently changed.
+
+# Examples
+```jldoctest
+julia> P=collect(1:20);
+julia> rand_without_replacement!(P, 5);
+julia> P
+15-element Array{Int64,1}:
+  1
+  2
+  3
+  5
+  6
+  7
+  8
+  9
+ 10
+ 11
+ 13
+ 14
+ 16
+ 19
+ 20
+```
+"""
+function rand_without_replacement!(P::Array{Int64,1}, d::Int64)
+    for i=1:d
+        deleteat!(P, findall(P.==rand(P)));
+    end
+end
