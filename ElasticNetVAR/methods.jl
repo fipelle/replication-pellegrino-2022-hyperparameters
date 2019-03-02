@@ -20,9 +20,9 @@ julia> sum_skipmissing([1.0; missing; 3.0])
 
 julia> sum_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
 3-element Array{Float64,1}:
-3.0
-3.0
-8.0
+ 3.0
+ 3.0
+ 8.0
 ```
 """
 sum_skipmissing(X::JVector) = sum(skipmissing(X));
@@ -44,9 +44,9 @@ julia> mean_skipmissing([1.0; missing; 3.0])
 
 julia> mean_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
 3-element Array{Float64,1}:
-1.5
-3.0
-4.0
+ 1.5
+ 3.0
+ 4.0
 ```
 """
 mean_skipmissing(X::JVector) = mean(skipmissing(X));
@@ -68,9 +68,9 @@ julia> std_skipmissing([1.0; missing; 3.0])
 
 julia> std_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
 3-element Array{Float64,1}:
-0.7071067811865476
-NaN
-1.4142135623730951
+   0.7071067811865476
+ NaN
+   1.4142135623730951
 ```
 """
 std_skipmissing(X::JVector) = std(skipmissing(X));
@@ -104,17 +104,14 @@ julia> standardize([1.0; 1.5; 2.0; 2.5; 3.0])
   0.632456
   1.26491
 
-julia> standardize([1.0 3.5; 1.5 4.0; 2.0 4.5; 2.5 5.0; 3.0 5.5])
-5×2 Array{Float64,2}:
- -1.26491   -1.26491
- -0.632456  -0.632456
-  0.0        0.0
-  0.632456   0.632456
-  1.26491    1.26491
+julia> standardize([1.0 3.5 1.5 4.0 2.0; 4.5 2.5 5.0 3.0 5.5])
+2×5 Array{Float64,2}:
+ -1.08173    0.849934  -0.695401   1.23627   -0.309067
+  0.309067  -1.23627    0.695401  -0.849934   1.08173
 ```
 """
 standardize(X::Array{Float64,1}) = (X.-mean(X))./std(X);
-standardize(X::Array{Float64,2}) = (X.-mean(X,2))./std(X,2);
+standardize(X::Array{Float64,2}) = (X.-mean(X,dims=2))./std(X,dims=2);
 standardize(X::JVector) = (X.-mean_skipmissing(X))./std_skipmissing(X);
 standardize(X::JArray) = (X.-mean_skipmissing(X))./std_skipmissing(X);
 
@@ -139,12 +136,12 @@ Standardize data to have mean zero and unit variance column wise.
 julia> standardize_verbose([1.0; 1.5; 2.0; 2.5; 3.0])
 (2.0, 0.7905694150420949, [-1.26491, -0.632456, 0.0, 0.632456, 1.26491])
 
-julia> standardize_verbose([1.0 3.5; 1.5 4.0; 2.0 4.5; 2.5 5.0; 3.0 5.5])
-([2.0 4.5], [0.790569 0.790569], [-1.26491 -1.26491; -0.632456 -0.632456; … ; 0.632456 0.632456; 1.26491 1.26491])
+julia> standardize_verbose([1.0 3.5 1.5 4.0 2.0; 4.5 2.5 5.0 3.0 5.5])
+([2.4; 4.1], [1.29422; 1.29422], [-1.08173 0.849934 … 1.23627 -0.309067; 0.309067 -1.23627 … -0.849934 1.08173])
 ```
 """
 standardize_verbose(X::Array{Float64,1}) = (mean(X), std(X), standardize(X));
-standardize_verbose(X::Array{Float64,2}) = (mean(X,2), std(X,2), standardize(X));
+standardize_verbose(X::Array{Float64,2}) = (mean(X,dims=2), std(X,dims=2), standardize(X));
 standardize_verbose(X::JVector) = (mean_skipmissing(X), std_skipmissing(X), standardize(X));
 standardize_verbose(X::JArray) = (mean_skipmissing(X), std_skipmissing(X), standardize(X));
 
@@ -248,7 +245,7 @@ julia> combinations(1000000,100000)
 7.333191945934207610471288280331309569215030711272858517142085449641265002716664e+141178
 ```
 """
-combinations(n::Int64, k::Int64) = factorial(big(n))/(factorial(big(n-k))*factorial(big(k)));
+combinations(n::Int64, k::Int64) = factorial(big(n))/(factorial(big(k))*factorial(big(n-k)));
 
 """
     rand_without_replacement!(P::Array{Int64,1}, d::Int64)
