@@ -7,8 +7,8 @@ using FileIO;
 
 # Data
 Y=DataFrame(load("./data/data.csv")) |> JArray{Float64,2};
-Y=standardize(Y);
 Y=Y' |> JArray{Float64,2};
+Y_zscored=standardize(Y);
 
 # Hyperparameters
 p=5;
@@ -17,6 +17,4 @@ p=5;
 β=1.5;
 
 # Run
-B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init = ecm(Y, p, λ, α, β);
-
-# test if the standardization is really required
+B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init = ecm(Y_zscored, p, λ, α, β);

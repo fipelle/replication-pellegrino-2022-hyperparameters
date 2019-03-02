@@ -19,12 +19,14 @@ julia> sum_skipmissing([1.0; missing; 3.0])
 4.0
 
 julia> sum_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
-1×2 Array{Float64,2}:
- 4.0  10.0
+3-element Array{Float64,1}:
+3.0
+3.0
+8.0
 ```
 """
 sum_skipmissing(X::JVector) = sum(skipmissing(X));
-sum_skipmissing(X::JArray) = hcat([sum_skipmissing(X[:,i]) for i=1:size(X,2)]...);
+sum_skipmissing(X::JArray) = vcat([sum_skipmissing(X[i,:]) for i=1:size(X,1)]...);
 
 """
     mean_skipmissing(X::JVector)
@@ -41,12 +43,14 @@ julia> mean_skipmissing([1.0; missing; 3.0])
 2.0
 
 julia> mean_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
-1×2 Array{Float64,2}:
- 2.0  3.33333
+3-element Array{Float64,1}:
+1.5
+3.0
+4.0
 ```
 """
 mean_skipmissing(X::JVector) = mean(skipmissing(X));
-mean_skipmissing(X::JArray) = hcat([mean_skipmissing(X[:,i]) for i=1:size(X,2)]...);
+mean_skipmissing(X::JArray) = vcat([mean_skipmissing(X[i,:]) for i=1:size(X,1)]...);
 
 """
     std_skipmissing(X::JVector)
@@ -63,38 +67,14 @@ julia> std_skipmissing([1.0; missing; 3.0])
 1.4142135623730951
 
 julia> std_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
-1×2 Array{Float64,2}:
- 1.41421  1.52753
+3-element Array{Float64,1}:
+0.7071067811865476
+NaN
+1.4142135623730951
 ```
 """
 std_skipmissing(X::JVector) = std(skipmissing(X));
-std_skipmissing(X::JArray) = hcat([std_skipmissing(X[:,i]) for i=1:size(X,2)]...);
-
-"""
-    isweird(X::JArray)
-
-Give a BitArray with true entries for each item of `X` equal to "nan" or "inf".
-
-# Examples
-```jldoctest
-julia> isweird([NaN; 1.0; Inf; 0.0; 2.0])
-5-element BitArray{1}:
-  true
- false
-  true
- false
- false
-
-julia> isweird([NaN 6.0; 1.0 3.0; Inf NaN; 0.0 12.5; 2.0 NaN])
-5×2 BitArray{2}:
-  true  false
- false  false
-  true   true
- false  false
- false   true
-```
-"""
-isweird(X::JArray) = (isnan.(X).+isinf.(X)).>=1;
+std_skipmissing(X::JArray) = vcat([std_skipmissing(X[i,:]) for i=1:size(X,1)]...);
 
 
 #=
@@ -134,7 +114,7 @@ julia> standardize([1.0 3.5; 1.5 4.0; 2.0 4.5; 2.5 5.0; 3.0 5.5])
 ```
 """
 standardize(X::Array{Float64,1}) = (X.-mean(X))./std(X);
-standardize(X::Array{Float64,2}) = (X.-mean(X,1))./std(X,1);
+standardize(X::Array{Float64,2}) = (X.-mean(X,2))./std(X,2);
 standardize(X::JVector) = (X.-mean_skipmissing(X))./std_skipmissing(X);
 standardize(X::JArray) = (X.-mean_skipmissing(X))./std_skipmissing(X);
 
@@ -164,7 +144,7 @@ julia> standardize_verbose([1.0 3.5; 1.5 4.0; 2.0 4.5; 2.5 5.0; 3.0 5.5])
 ```
 """
 standardize_verbose(X::Array{Float64,1}) = (mean(X), std(X), standardize(X));
-standardize_verbose(X::Array{Float64,2}) = (mean(X,1), std(X,1), standardize(X));
+standardize_verbose(X::Array{Float64,2}) = (mean(X,2), std(X,2), standardize(X));
 standardize_verbose(X::JVector) = (mean_skipmissing(X), std_skipmissing(X), standardize(X));
 standardize_verbose(X::JArray) = (mean_skipmissing(X), std_skipmissing(X), standardize(X));
 

@@ -3,8 +3,9 @@ include("./ElasticNetVAR/ElasticNetVAR.jl");
 using Main.ElasticNetVAR;
 using Random;
 using Distributions;
+using LinearAlgebra;
 
-function simulate_var(T::Int64, n::Int64, p::Int64, sparsity::Float64; burnin::Int64=100)
+function simulate_stationary_var(T::Int64, n::Int64, p::Int64, sparsity::Float64; burnin::Int64=100)
     if sparsity < 0 || sparsity > 1
         error("0 ≤ sparsity ≤ 1");
     end
@@ -32,9 +33,11 @@ function simulate_var(T::Int64, n::Int64, p::Int64, sparsity::Float64; burnin::I
         V = copy(Σ);
     end
 
-    # Rescale the coefficients to make sure that the VAR(p) is stationary
-    #modulus_eigvals_C = abs.(eigvals(C));
-    #C[1:n, :] .*= 1/(maximum(modulus_eigvals_C)*1.1);
+    max_eigvals_C = maximum(abs.(eigvals(C)));
+    while max_eigvals_C >= 0.999
+        C[1:n, :] *= 1/maximum(abs.(C));
+        max_eigvals_C = maximum(abs.(eigvals(C)));
+    end
 
     # Update Ψ
     Ψ = C[1:n, :];
@@ -59,5 +62,5 @@ function simulate_var(T::Int64, n::Int64, p::Int64, sparsity::Float64; burnin::I
     # TBA
 
     # Return output
-    return #Y[:, p+burnin+1:end];
+    return Y[:, p+burnin+1:end], Ψ;
 end
