@@ -7,11 +7,11 @@ using FileIO;
 
 # Data
 Y=DataFrame(load("./data/data.csv")) |> JArray{Float64,2};
-Y=Y' |> JArray{Float64,2};
-Y_zscored=standardize(Y);
+Y=Y'[1:2,:] |> JArray{Float64,2};
+Y_zscored=standardize(Y) |> JArray{Float64,2};
 
 # Hyperparameters
-p=5;
+p=4;
 λ=0.5;
 α=0.5;
 β=1.5;
