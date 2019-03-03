@@ -26,5 +26,5 @@ module ElasticNetVAR
 	include("$local_path/ecm.jl");
 
 	# Export
-	export JVector, JArray, kalman, ecm, coordinate_descent, standardize, lag, companion_form, rand_without_replacement!;
+	export JVector, JArray, kalman, ecm, coordinate_descent, mean_skipmissing, std_skipmissing, standardize, lag, companion_form, rand_without_replacement!;
 end

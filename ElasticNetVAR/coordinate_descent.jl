@@ -111,7 +111,7 @@ function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Nu
 
             # Stop when the algorithm converges
             if iter > 1
-                if (objfun_new-objfun_old)./(abs(objfun_old)+ε) <= tol
+                if -(objfun_new-objfun_old)./(abs(objfun_old)+ε) <= tol # the minus sign is correct
                     if verb == true
                         println("coordinate_descent ($i-th row) > converged!");
                     end
