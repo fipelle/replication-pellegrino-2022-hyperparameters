@@ -31,5 +31,5 @@ module ElasticNetVAR
 	export mean_skipmissing, std_skipmissing, standardize, lag, companion_form, rand_without_replacement!;
 	export kalman;
 	export coordinate_descent, ecm;
-	export err_iis, err_oos;
+	export fc_err;
 end
