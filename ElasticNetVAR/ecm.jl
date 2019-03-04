@@ -83,7 +83,9 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     Y_init = Y_init |> Array{Float64};
 
     # Initialise using the coordinate descent algorithm
-    println("ecm > initialisation");
+    if verb == true
+        println("ecm > initialisation");
+    end
     Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, p, λ, α, β, tol=tol, max_iter=max_iter, verb=false);
 
 
