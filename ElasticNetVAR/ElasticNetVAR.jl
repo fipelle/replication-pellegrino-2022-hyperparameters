@@ -24,7 +24,12 @@ module ElasticNetVAR
 	include("$local_path/coordinate_descent.jl");
 	include("$local_path/kalman.jl");
 	include("$local_path/ecm.jl");
+	include("$local_path/validation.jl");
 
 	# Export
-	export JVector, JArray, kalman, ecm, coordinate_descent, mean_skipmissing, std_skipmissing, standardize, lag, companion_form, rand_without_replacement!;
+	export JVector, JArray;
+	export mean_skipmissing, std_skipmissing, standardize, lag, companion_form, rand_without_replacement!;
+	export kalman;
+	export coordinate_descent, ecm;
+	export err_iis, err_oos;
 end

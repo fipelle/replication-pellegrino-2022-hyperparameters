@@ -1,5 +1,5 @@
 """
-    kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray, V::FloatArray, 𝔛0::FloatVector, P0::FloatArray; loglik_flag::Bool=false, flag_lag1_cov::Bool=false)
+    kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray, V::FloatArray, 𝔛0::FloatVector, P0::FloatArray; loglik_flag::Bool=false, kf_only_flag::Bool=false, lag1_cov_flag::Bool=false)
 
 Perform the Kalman filter and smoother recursions as in Shumway and Stoffer (2011, chapter 6).
 
@@ -21,12 +21,13 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 - `𝔛0`: Mean vector for the states at time t=0
 - `P0`: Covariance matrix for the states at time t=0
 - `loglik_flag`: True to estimate the loglikelihood (default: false)
-- `flag_lag1_cov`: True to estimate the lag-one covariance smoother (default: false)
+- `kf_only_flag`: True to run the Kalman filter only (default: false)
+- `lag1_cov_flag`: True to estimate the lag-one covariance smoother (default: false)
 
 # References
 Shumway and Stoffer (2011, chapter 6).
 """
-function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray, V::FloatArray, 𝔛0::FloatVector, P0::FloatArray; loglik_flag::Bool=false, flag_lag1_cov::Bool=false)
+function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray, V::FloatArray, 𝔛0::FloatVector, P0::FloatArray; loglik_flag::Bool=false, kf_only_flag::Bool=false, lag1_cov_flag::Bool=false)
 
     #=
     -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -129,7 +130,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         Pf[:,:,t] += Pf[:,:,t]';
 
         # Initialise lag-one covariance as in Shumway and Stoffer (2011, pp. 334)
-        if t == T && flag_lag1_cov == true
+        if t == T && lag1_cov_flag == true
             PPs[:,:,t] = C*Pf[:,:,t-1] - K_t*B_t*C*Pf[:,:,t-1];
         end
 
@@ -147,51 +148,53 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
     =#
 
     # As in Shumway and Stoffer (2011, pp. 330)
+    if kf_only_flag == false
 
-    # At t=T the smoothed estimates are identical to the filtered (a posteriori)
-    𝔛s[:,T] = copy(𝔛f[:,T]);
-    Ps[:,:,T] = copy(Pf[:,:,T]);
+        # At t=T the smoothed estimates are identical to the filtered (a posteriori)
+        𝔛s[:,T] = copy(𝔛f[:,T]);
+        Ps[:,:,T] = copy(Pf[:,:,T]);
 
-    # Loop over t=T,...,1
-    for t=T:-1:1
+        # Loop over t=T,...,1
+        for t=T:-1:1
 
-        if t > 1
-            # J_{t-1}
-            J1 = Pf[:,:,t-1]*C'/Pp[:,:,t];
+            if t > 1
+                # J_{t-1}
+                J1 = Pf[:,:,t-1]*C'/Pp[:,:,t];
 
-            # Smoothed estimates for t-1
-            𝔛s[:,t-1] = 𝔛f[:,t-1] + J1*(𝔛s[:,t]-𝔛p[:,t]);
-            Ps[:,:,t-1] = Pf[:,:,t-1] + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
+                # Smoothed estimates for t-1
+                𝔛s[:,t-1] = 𝔛f[:,t-1] + J1*(𝔛s[:,t]-𝔛p[:,t]);
+                Ps[:,:,t-1] = Pf[:,:,t-1] + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
 
-            # Make sure Ps[:,:,t-1] is symmetric
-            Ps[:,:,t-1] *= 0.5;
-            Ps[:,:,t-1] += Ps[:,:,t-1]';
+                # Make sure Ps[:,:,t-1] is symmetric
+                Ps[:,:,t-1] *= 0.5;
+                Ps[:,:,t-1] += Ps[:,:,t-1]';
 
-        else
-            # J_{t-1}
-            J1 = P0_sym*C'/Pp[:,:,t];
-
-            # Smoothed estimates for t-1
-            𝔛s_0 = 𝔛0 + J1*(𝔛s[:,t]-𝔛p[:,t]);
-            Ps_0 = P0_sym + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
-
-            # Make sure Ps_0 is symmetric
-            Ps_0 *= 0.5;
-            Ps_0 += Ps_0';
-        end
-
-        # Lag-one covariance smoother as in Shumway and Stoffer (2011, pp. 334)
-        if t >= 2 && flag_lag1_cov == true
-
-            # J_{t-2}
-            if t > 2
-                J2 = Pf[:,:,t-2]*C'/Pp[:,:,t-1];
             else
-                J2 = P0_sym*C'/Pp[:,:,t-1];
+                # J_{t-1}
+                J1 = P0_sym*C'/Pp[:,:,t];
+
+                # Smoothed estimates for t-1
+                𝔛s_0 = 𝔛0 + J1*(𝔛s[:,t]-𝔛p[:,t]);
+                Ps_0 = P0_sym + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
+
+                # Make sure Ps_0 is symmetric
+                Ps_0 *= 0.5;
+                Ps_0 += Ps_0';
             end
 
-            # Lag-one covariance
-            PPs[:,:,t-1] = Pf[:,:,t-1]*J2' + J1*(PPs[:,:,t] - C*Pf[:,:,t-1])*J2';
+            # Lag-one covariance smoother as in Shumway and Stoffer (2011, pp. 334)
+            if t >= 2 && lag1_cov_flag == true
+
+                # J_{t-2}
+                if t > 2
+                    J2 = Pf[:,:,t-2]*C'/Pp[:,:,t-1];
+                else
+                    J2 = P0_sym*C'/Pp[:,:,t-1];
+                end
+
+                # Lag-one covariance
+                PPs[:,:,t-1] = Pf[:,:,t-1]*J2' + J1*(PPs[:,:,t] - C*Pf[:,:,t-1])*J2';
+            end
         end
     end
 
