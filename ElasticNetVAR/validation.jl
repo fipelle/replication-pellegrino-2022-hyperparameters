@@ -49,6 +49,7 @@ function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Numb
     # Out-of-sample
     else
         resid = (𝔛p[1:size(Y,1), t0+1:end] .- Y[:, t0+1:end]).^2;
+        # Add support for column of missings
         loss += mean([mean_skipmissing(resid[:,t]) for t=1:T-t0]);
     end
 

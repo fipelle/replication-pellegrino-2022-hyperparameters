@@ -108,8 +108,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     # Initial conditions
     𝔛0̂ = zeros(np+n);
     P0̂ = reshape((Matrix(I, (np+n)^2, (np+n)^2)-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
-    P0̂ *= 0.5;
-    P0̂ += P0̂';
+    P0̂ = stabilize_sym_matrix(P0̂);
 
     # Initialise additional variables
     Ψ̂ = Ĉ[1:n, 1:np];
@@ -195,8 +194,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         V̂[1:n, 1:n] = (1/T).*(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)');
 
         # Make sure V̂ is symmetric
-        V̂[1:n, 1:n] *= 0.5;
-        V̂[1:n, 1:n] += V̂[1:n, 1:n]';
+        V̂[1:n, 1:n] = stabilize_sym_matrix(V̂[1:n, 1:n]);
 
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];
