@@ -193,9 +193,6 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         # Covariance matrix of the VAR(p) residuals
         V̂[1:n, 1:n] = (1/T).*(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)');
 
-        # Make sure V̂ is symmetric
-        V̂[1:n, 1:n] = stabilize_sym_matrix(V̂[1:n, 1:n]);
-
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];
     end
