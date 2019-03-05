@@ -109,6 +109,10 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     𝔛0̂ = zeros(np+n);
     P0̂ = reshape((Matrix(I, (np+n)^2, (np+n)^2)-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
 
+    # Make the inverse (perfectly) symmetric
+    P0̂ += P0̂';
+    P0̂ *= 0.5;
+
     # Initialise additional variables
     Ψ̂ = Ĉ[1:n, 1:np];
     Σ̂ = V̂[1:n, 1:n];
