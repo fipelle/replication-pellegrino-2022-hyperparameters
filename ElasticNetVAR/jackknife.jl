@@ -30,7 +30,7 @@ function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
     samples = T-block_size+1;
 
     # Initialise jackknife_data
-    jackknife_data = Array{JArray{Float64,2},1}(undef, samples);
+    jackknife_data = JArray{Float64,3}(undef, n, T, samples);
 
     # Loop over j=1, ..., samples
     for j=1:samples
@@ -39,8 +39,8 @@ function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
         indʲ = collect(j:j+block_size-1);
 
         # Block jackknife data
-        jackknife_data[j] = copy(Y);
-        jackknife_data[j][:, indʲ] .= missing;
+        jackknife_data[:, :, j] .= Y;
+        jackknife_data[:, indʲ, j] .= missing;
     end
 
     # Return jackknife_data
@@ -90,7 +90,7 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
     ind_missings = zeros(d, samples) |> Array{Int64};
 
     # Initialise jackknife_data
-    jackknife_data = Array{JArray{Float64,2},1}(undef, samples);
+    jackknife_data = JArray{Float64,3}(undef, n, T, samples);
 
     # Loop over j=1, ..., samples
     for j=1:samples
@@ -123,7 +123,7 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
         vec_Yʲ[ind_missings[:,j]] .= missing;
 
         # Store data
-        jackknife_data[j] = reshape(vec_Yʲ, n, T);
+        jackknife_data[:, :, j] .= reshape(vec_Yʲ, n, T);
     end
 
     # Return jackknife_data
