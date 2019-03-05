@@ -108,10 +108,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     # Initial conditions
     𝔛0̂ = zeros(np+n);
     P0̂ = reshape((Matrix(I, (np+n)^2, (np+n)^2)-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
-
-    # Make the inverse (perfectly) symmetric
-    P0̂ += P0̂';
-    P0̂ *= 0.5;
+    P0̂ = sym(P0̂);
 
     # Initialise additional variables
     Ψ̂ = Ĉ[1:n, 1:np];
@@ -138,7 +135,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         if iter > prerun
 
             # New penalised loglikelihood
-            pen_loglik_new = loglik - 0.5*tr(Σ̂\((1-α).*Ψ̂ + α.*(Ψ̂.*Φ̂ᵏ))*Γ*Ψ̂');
+            pen_loglik_new = loglik - 0.5*tr(sym(inv(Σ̂))*((1-α).*Ψ̂ + α.*(Ψ̂.*Φ̂ᵏ))*Γ*Ψ̂');
 
             if verb == true
                 println("ecm > iter=$(iter-prerun), penalised loglik=$(round(pen_loglik_new, digits=5))");
@@ -195,7 +192,8 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
         # Covariance matrix of the VAR(p) residuals
         V̂[1:n, 1:n] = (1/T).*(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)');
-
+        V̂[1:n, 1:n] = sym(V̂[1:n, 1:n]);
+        
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];
     end
