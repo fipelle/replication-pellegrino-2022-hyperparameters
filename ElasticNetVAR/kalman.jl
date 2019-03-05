@@ -67,9 +67,6 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
     𝔛s_0 = zeros(m);
     Ps_0 = zeros(m, m);
 
-    # Make sure P0 is symmetric
-    P0_sym = stabilize_sym_matrix(P0);
-
     #=
     Log likelihood
     - This is not the conditional expectation of the likelihood in Shumway Stoffer (2011, pp. 340)
@@ -89,14 +86,11 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         # A priori estimates
         if t==1
             𝔛p[:,t] = C*𝔛0;
-            Pp[:,:,t] = C*P0_sym*C' + V;
+            Pp[:,:,t] = C*P0*C' + V;
         else
             𝔛p[:,t] = C*𝔛f[:,t-1];
             Pp[:,:,t] = C*Pf[:,:,t-1]*C' + V;
         end
-
-        # Make sure Pp[:,:,t] is symmetric
-        Pp[:,:,t] = stabilize_sym_matrix(Pp[:,:,t]);
 
         # Handle missing observations following the "zeroing" approach in Shumway and Stoffer (2011, pp. 345, eq. 6.79)
         Y_t = copy(Y[:,t]);
@@ -113,18 +107,12 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         ε_t = Y_t - B_t*𝔛p[:,t];
         Σ_t = B_t*Pp[:,:,t]*B_t' + R_t;
 
-        # Make sure Σ_t is symmetric
-        Σ_t = stabilize_sym_matrix(Σ_t);
-
         # Kalman gain
         K_t = Pp[:,:,t]*B_t'/Σ_t;
 
         # A posteriori estimates
         𝔛f[:,t] = 𝔛p[:,t] + K_t*ε_t;
         Pf[:,:,t] = Pp[:,:,t] - K_t*B_t*Pp[:,:,t];
-
-        # Make sure Pf[:,:,t] is symmetric
-        Pf[:,:,t] = stabilize_sym_matrix(Pf[:,:,t]);
 
         # Initialise lag-one covariance as in Shumway and Stoffer (2011, pp. 334)
         if t == T && lag1_cov_flag == true
@@ -165,19 +153,13 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
                 𝔛s[:,t-1] = 𝔛f[:,t-1] + J1*(𝔛s[:,t]-𝔛p[:,t]);
                 Ps[:,:,t-1] = Pf[:,:,t-1] + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
 
-                # Make sure Ps[:,:,t-1] is symmetric
-                Ps[:,:,t-1] = stabilize_sym_matrix(Ps[:,:,t-1]);
-
             else
                 # J_{t-1}
-                J1 = P0_sym*C'/Pp[:,:,t];
+                J1 = P0*C'/Pp[:,:,t];
 
                 # Smoothed estimates for t-1
                 𝔛s_0 = 𝔛0 + J1*(𝔛s[:,t]-𝔛p[:,t]);
-                Ps_0 = P0_sym + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
-
-                # Make sure Ps_0 is symmetric
-                Ps_0 = stabilize_sym_matrix(Ps_0);
+                Ps_0 = P0 + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
             end
 
             # Lag-one covariance smoother as in Shumway and Stoffer (2011, pp. 334)
@@ -187,7 +169,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
                 if t > 2
                     J2 = Pf[:,:,t-2]*C'/Pp[:,:,t-1];
                 else
-                    J2 = P0_sym*C'/Pp[:,:,t-1];
+                    J2 = P0*C'/Pp[:,:,t-1];
                 end
 
                 # Lag-one covariance
