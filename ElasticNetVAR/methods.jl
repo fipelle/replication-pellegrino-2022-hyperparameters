@@ -156,15 +156,6 @@ standardize_verbose(X::Array{Float64,2}) = (mean(X,dims=2), std(X,dims=2), stand
 standardize_verbose(X::JVector) = (mean_skipmissing(X), std_skipmissing(X), standardize(X));
 standardize_verbose(X::JArray) = (mean_skipmissing(X), std_skipmissing(X), standardize(X));
 
-"""
-    stabilize_sym_matrix(X::Array{Int64,2})
-    stabilize_sym_matrix(X::Array{Float64,2})
-
-Make sure that X is symmetric.
-"""
-stabilize_sym_matrix(X::Array{Int64,2}) = (X+X')./2;
-stabilize_sym_matrix(X::Array{Float64,2}) = (X+X')./2;
-
 
 #=
 --------------------------------------------------------------------------------------------------------------------------------
