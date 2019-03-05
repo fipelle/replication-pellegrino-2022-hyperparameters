@@ -143,11 +143,10 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
 
     #=
     -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    Kalman smoother
+    Kalman smoother, as in Shumway and Stoffer (2011, pp. 330)
     -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     =#
 
-    # As in Shumway and Stoffer (2011, pp. 330)
     if kf_only_flag == false
 
         # At t=T the smoothed estimates are identical to the filtered (a posteriori)

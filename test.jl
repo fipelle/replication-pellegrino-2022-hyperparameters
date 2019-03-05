@@ -21,5 +21,8 @@ p=2;
 #err_iis(Y_zscored, p, λ, α, β)
 
 @time for i=1:10
-    err_oos(Y_zscored, p, λ, α, β, 100, tol=1e-4, verb=false);
+    fc_err(Y_zscored, p, λ, α, β, tol=1e-4, verb=true);
 end
+
+iis_loss = fc_err(Y_zscored, p, λ, α, β, tol=1e-4, verb=true);
+oos_loss = fc_err(Y_zscored, p, λ, α, β, iis=false, t0=150, tol=1e-4, verb=true);
