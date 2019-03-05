@@ -86,10 +86,10 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         # A priori estimates
         if t==1
             𝔛p[:,t] = C*𝔛0;
-            Pp[:,:,t] = C*P0*C' + V;
+            Pp[:,:,t] = sym(C*P0*C') + V;
         else
             𝔛p[:,t] = C*𝔛f[:,t-1];
-            Pp[:,:,t] = C*Pf[:,:,t-1]*C' + V;
+            Pp[:,:,t] = sym(C*Pf[:,:,t-1]*C') + V;
         end
 
         # Handle missing observations following the "zeroing" approach in Shumway and Stoffer (2011, pp. 345, eq. 6.79)
@@ -105,14 +105,14 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
 
         # Forecast error
         ε_t = Y_t - B_t*𝔛p[:,t];
-        Σ_t = B_t*Pp[:,:,t]*B_t' + R_t;
+        Σ_t = sym(B_t*Pp[:,:,t]*B_t') + R_t;
 
         # Kalman gain
-        K_t = Pp[:,:,t]*B_t'/Σ_t;
+        K_t = Pp[:,:,t]*B_t'*sym_inv(Σ_t);
 
         # A posteriori estimates
         𝔛f[:,t] = 𝔛p[:,t] + K_t*ε_t;
-        Pf[:,:,t] = Pp[:,:,t] - K_t*B_t*Pp[:,:,t];
+        Pf[:,:,t] = Pp[:,:,t] - sym(K_t*B_t*Pp[:,:,t]);
 
         # Initialise lag-one covariance as in Shumway and Stoffer (2011, pp. 334)
         if t == T && lag1_cov_flag == true
@@ -122,7 +122,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         # Log likelihood
         if loglik_flag == true
             try
-                loglik -= 0.5*(logdet(Σ_t) + ε_t'/Σ_t*ε_t);
+                loglik -= 0.5*(logdet(Σ_t) + ε_t'*sym_inv(Σ_t)*ε_t);
             catch
                 error("Determinant: $(det(Σ_t))");
             end
