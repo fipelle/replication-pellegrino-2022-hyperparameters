@@ -20,9 +20,11 @@ p=2;
 #B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init = ecm(Y_zscored, p, λ, α, β);
 #err_iis(Y_zscored, p, λ, α, β)
 
+#=
 @time for i=1:10
     fc_err(Y_zscored, p, λ, α, β, tol=1e-4, verb=true);
 end
+=#
 
 iis_loss = fc_err(Y_zscored, p, λ, α, β, tol=1e-4, verb=true);
 oos_loss = fc_err(Y_zscored, p, λ, α, β, iis=false, t0=150, tol=1e-4, verb=true);
