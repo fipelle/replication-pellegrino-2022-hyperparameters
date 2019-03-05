@@ -147,19 +147,19 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
 
             if t > 1
                 # J_{t-1}
-                J1 = Pf[:,:,t-1]*C'/Pp[:,:,t];
+                J1 = Pf[:,:,t-1]*C'*sym_inv(Pp[:,:,t]);
 
                 # Smoothed estimates for t-1
                 𝔛s[:,t-1] = 𝔛f[:,t-1] + J1*(𝔛s[:,t]-𝔛p[:,t]);
-                Ps[:,:,t-1] = Pf[:,:,t-1] + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
+                Ps[:,:,t-1] = Pf[:,:,t-1] + sym(J1*(Ps[:,:,t]-Pp[:,:,t])*J1');
 
             else
                 # J_{t-1}
-                J1 = P0*C'/Pp[:,:,t];
+                J1 = P0*C'*sym_inv(Pp[:,:,t]);
 
                 # Smoothed estimates for t-1
                 𝔛s_0 = 𝔛0 + J1*(𝔛s[:,t]-𝔛p[:,t]);
-                Ps_0 = P0 + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
+                Ps_0 = P0 + sym(J1*(Ps[:,:,t]-Pp[:,:,t])*J1');
             end
 
             # Lag-one covariance smoother as in Shumway and Stoffer (2011, pp. 334)
@@ -167,9 +167,9 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
 
                 # J_{t-2}
                 if t > 2
-                    J2 = Pf[:,:,t-2]*C'/Pp[:,:,t-1];
+                    J2 = Pf[:,:,t-2]*C'*sym_inv(Pp[:,:,t-1]);
                 else
-                    J2 = P0*C'/Pp[:,:,t-1];
+                    J2 = P0*C'*sym_inv(Pp[:,:,t-1]);
                 end
 
                 # Lag-one covariance

@@ -61,12 +61,12 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     Γ = [];
     for i=0:p-1
         if i == 0
-            Γ = Matrix{Float64}(I, n, n);
+            Γ = ones(n);
         else
-            Γ = cat(Γ, (β^i).*Matrix{Float64}(I, n, n), dims=[1,2]);
+            Γ = vcat(Γ, (β^i).*ones(n));
         end
     end
-    Γ = λ.*Γ;
+    Γ = Diagonal(λ.*Γ);
 
 
     #=
