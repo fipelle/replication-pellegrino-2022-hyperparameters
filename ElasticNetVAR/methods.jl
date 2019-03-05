@@ -94,6 +94,13 @@ Make sure the matrix `X` is symmetric
 """
 sym(X::Array{Float64,2}) = (X+X')/2;
 
+"""
+    sym_inv(X::Array{Float64,2})
+
+Make sure the inverse of `X` is symmetric
+"""
+sym_inv(X::Array{Float64,2}) = sym(inv(X));
+
 
 #=
 --------------------------------------------------------------------------------------------------------------------------------
