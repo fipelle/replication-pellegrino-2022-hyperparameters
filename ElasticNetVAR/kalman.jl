@@ -68,7 +68,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
     Ps_0 = zeros(m, m);
 
     # Make sure P0 is symmetric
-    P0_sym = 0.5*(P0'+P0);
+    P0_sym = stabilize_sym_matrix(P0);
 
     #=
     Log likelihood
@@ -96,8 +96,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         end
 
         # Make sure Pp[:,:,t] is symmetric
-        Pp[:,:,t] *= 0.5;
-        Pp[:,:,t] += Pp[:,:,t]';
+        Pp[:,:,t] = stabilize_sym_matrix(Pp[:,:,t]);
 
         # Handle missing observations following the "zeroing" approach in Shumway and Stoffer (2011, pp. 345, eq. 6.79)
         Y_t = copy(Y[:,t]);
@@ -115,8 +114,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         Σ_t = B_t*Pp[:,:,t]*B_t' + R_t;
 
         # Make sure Σ_t is symmetric
-        Σ_t *= 0.5;
-        Σ_t += Σ_t';
+        Σ_t = stabilize_sym_matrix(Σ_t);
 
         # Kalman gain
         K_t = Pp[:,:,t]*B_t'/Σ_t;
@@ -126,8 +124,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         Pf[:,:,t] = Pp[:,:,t] - K_t*B_t*Pp[:,:,t];
 
         # Make sure Pf[:,:,t] is symmetric
-        Pf[:,:,t] *= 0.5;
-        Pf[:,:,t] += Pf[:,:,t]';
+        Pf[:,:,t] = stabilize_sym_matrix(Pf[:,:,t]);
 
         # Initialise lag-one covariance as in Shumway and Stoffer (2011, pp. 334)
         if t == T && lag1_cov_flag == true
@@ -165,8 +162,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
                 Ps[:,:,t-1] = Pf[:,:,t-1] + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
 
                 # Make sure Ps[:,:,t-1] is symmetric
-                Ps[:,:,t-1] *= 0.5;
-                Ps[:,:,t-1] += Ps[:,:,t-1]';
+                Ps[:,:,t-1] = stabilize_sym_matrix(Ps[:,:,t-1]);
 
             else
                 # J_{t-1}
@@ -177,8 +173,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
                 Ps_0 = P0_sym + J1*(Ps[:,:,t]-Pp[:,:,t])*J1';
 
                 # Make sure Ps_0 is symmetric
-                Ps_0 *= 0.5;
-                Ps_0 += Ps_0';
+                Ps_0 = stabilize_sym_matrix(Ps_0);
             end
 
             # Lag-one covariance smoother as in Shumway and Stoffer (2011, pp. 334)
