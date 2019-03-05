@@ -5,7 +5,6 @@ module ElasticNetVAR
 	using LinearAlgebra
 	using Statistics;
 	using Distributions;
-	using FileIO, DataFrames;
 	
 	const local_path = dirname(@__FILE__);
 
