@@ -16,8 +16,8 @@ Kunsch (1989) and Pellegrino (2019)
 function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 
     # Error management
-    if (subsample <= 0) || (subsample >= 1)
-        error("subsample must be between 0 and 1.");
+    if subsample <= 0 || subsample >= 1
+        error("0 < subsample < 1");
     end
 
     # Dimensions
@@ -39,7 +39,7 @@ function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
         indʲ = collect(j:j+block_size-1);
 
         # Block jackknife data
-        jackknife_data[:, :, j] .= Y;
+        jackknife_data[:, :, j] = Y;
         jackknife_data[:, indʲ, j] .= missing;
     end
 
@@ -68,8 +68,8 @@ Pellegrino (2019)
 function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samples::Int64)
 
     # Error management
-    if (subsample <= 0) || (subsample >= 1)
-        error("subsample must be between 0 and 1.");
+    if subsample <= 0 || subsample >= 1
+        error("0 < subsample < 1");
     end
 
     # Dimensions
@@ -123,7 +123,7 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
         vec_Yʲ[ind_missings[:,j]] .= missing;
 
         # Store data
-        jackknife_data[:, :, j] .= reshape(vec_Yʲ, n, T);
+        jackknife_data[:, :, j] = reshape(vec_Yʲ, n, T);
     end
 
     # Return jackknife_data
