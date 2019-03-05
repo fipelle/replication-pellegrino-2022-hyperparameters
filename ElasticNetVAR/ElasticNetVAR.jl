@@ -29,8 +29,9 @@ module ElasticNetVAR
 
 	# Export
 	export JVector, JArray;
-	export mean_skipmissing, std_skipmissing, standardize, lag, companion_form, rand_without_replacement!;
+	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, standardize, lag, companion_form, no_combinations, rand_without_replacement!;
 	export kalman;
 	export coordinate_descent, ecm;
+	export block_jackknife, artificial_jackknife;
 	export fc_err;
 end

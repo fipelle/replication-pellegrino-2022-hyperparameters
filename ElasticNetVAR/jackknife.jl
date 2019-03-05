@@ -1,51 +1,46 @@
 """
-    block_jackknife(object::BlockJackknife)
+    block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 
-Generate block jackknife samples on the basis of a BlockJackknife structure.
+Generate block jackknife samples as in Kunsch (1989).
 
 This technique subsamples a time series dataset by removing, in turn, all the blocks of consecutive observations
 with a given size.
 
-See also: Kunsch (1989).
+# Arguments
+- `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
+- `subsample`: block size as a percentage of the original sample size. It is bounded between 0 and 1.
+
+# References
+Kunsch (1989) and Pellegrino (2019)
 """
-function block_jackknife(object::BlockJackknife)
+function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 
     # Error management
-    if (object.subsample <= 0) || (object.subsample >= 1)
-        error("object.subsample must be between 0 and 1.");
+    if (subsample <= 0) || (subsample >= 1)
+        error("subsample must be between 0 and 1.");
     end
 
     # Dimensions
-    if ndims(object.data) == 1
-        const T = length(object.data);
-        const n = 1;
-    else
-        const T, n = size(object.data);
-    end
+    n, T = size(Y);
 
     # Block size
-    const block_size = Int64(ceil(object.subsample*T));
+    block_size = Int64(ceil(subsample*T));
 
     # Number of block jackknifes samples - as in Kunsch (1989)
-    const samples = T-block_size+1;
+    samples = T-block_size+1;
 
     # Initialise jackknife_data
-    if n == 1
-        jackknife_data = Array{FloatVector,1}(samples);
-    else
-        jackknife_data = Array{FloatMatrix,1}(samples);
-    end
+    jackknife_data = Array{JArray{Float64,2},1}(undef, samples);
 
-    # Loop over b=1, ..., samples
-    for b=1:samples
-        indᵇ = collect(1:T);
-        deleteat!(indᵇ, collect(b:b+block_size-1));
+    # Loop over j=1, ..., samples
+    for j=1:samples
 
-        if n == 1
-            jackknife_data[b] = object.data[indᵇ];
-        else
-            jackknife_data[b] = object.data[indᵇ, :];
-        end
+        # Index of missings
+        indʲ = collect(j:j+block_size-1);
+
+        # Block jackknife data
+        jackknife_data[j] = copy(Y);
+        jackknife_data[j][:, indʲ] .= missing;
     end
 
     # Return jackknife_data
@@ -55,95 +50,80 @@ end
 """
     artificial_jackknife(object::ArtificialJackknife)
 
-Generate artificial jackknife samples on the basis of a ArtificialJackknife structure.
+Generate artificial jackknife samples as in Pellegrino (2019).
 
 The artificial delete-d jackknife is an extension of the delete-d jackknife for dependent data problems.
 This technique replaces the actual data removal step with a fictitious deletion, which consists of
 imposing `d`-dimensional (artificial) patterns of missing observations to the data. This approach
 does not alter the data order nor destroy the correlation structure.
 
-See also: Pellegrino (2019).
+# Arguments
+- `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
+- `subsample`: `d` as a percentage of the original sample size. It is bounded between 0 and 1.
+- `max_samples`: if `C(T*n,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples.
+
+# References
+Pellegrino (2019)
 """
-function artificial_jackknife(object::ArtificialJackknife)
+function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samples::Int64)
 
     # Error management
-    if (object.subsample <= 0) || (object.subsample >= 1)
-        error("object.subsample must be between 0 and 1.");
+    if (subsample <= 0) || (subsample >= 1)
+        error("subsample must be between 0 and 1.");
     end
 
     # Dimensions
-    if ndims(object.data) == 1
-        const T = length(object.data);
-        const n = 1;
-    else
-        const T, n = size(object.data);
-    end
-
-    const Tn = T*n;
+    n, T = size(Y);
+    Tn = T*n;
 
     # d
-    const d = Int64(ceil(object.subsample*Tn));
+    d = Int64(ceil(subsample*Tn));
     if d <= sqrt(Tn)
         error("The number of (artificial) missing observations is too small. d must be larger or equal to sqrt(Tn).");
     end
 
     # Get vec(Y)
-    const vec_Y = object.data[:];
+    vec_Y = Y[:] |> JArray{Float64};
 
     # Initialise ind_missings
-    ind_missings = convert(Array{Int64,2}, zeros(d, min(C(Tn,d), object.max_samples)));
-
-    # If C(Tn,d) is sufficiently small, it uses `combinations(...)` to generate the full set
-    if C(Tn,d) <= object.max_samples
-        ind_missings = hcat(collect(combinations(collect(1:Tn), d))...);
-
-    # Else: draw without replacement from the full combinations set an `object.max_samples` number of indices
-    else
-        for b=1:object.max_samples
-
-            if b == 1
-                # Get index
-                indᵇ = collect(1:Tn);
-                rand_without_replacement!(indᵇ, Tn-d);
-
-                # Store index
-                ind_missings[:,b] = indᵇ;
-
-            elseif b > 1
-                # Iterates until ind_missings[:,b] is neither a vector of zeros, nor already included in ind_missings
-                while (ind_missings[:,b] == zeros(d)) || (vector_in_matrix(ind_missings[:,b], ind_missings[:,1:b-1]))
-
-                    # Get index
-                    indᵇ = collect(1:Tn);
-                    rand_without_replacement!(indᵇ, Tn-d);
-
-                    # Store index
-                    ind_missings[:,b] = indᵇ;
-                end
-            end
-        end
-    end
+    samples = min(no_combinations(Tn, d), max_samples) |> Int64;
+    ind_missings = zeros(d, samples) |> Array{Int64};
 
     # Initialise jackknife_data
-    if n == 1
-        jackknife_data = Array{FloatVector,1}(object.max_samples);
-    else
-        jackknife_data = Array{FloatMatrix,1}(object.max_samples);
-    end
+    jackknife_data = Array{JArray{Float64,2},1}(undef, samples);
 
-    # Loop over b=1, ..., object.max_samples
-    for b=1:object.max_samples
+    # Loop over j=1, ..., samples
+    for j=1:samples
+
+        if j == 1
+
+            # Get index
+            indʲ = collect(1:Tn);
+            rand_without_replacement!(indʲ, Tn-d);
+
+            # Store index
+            ind_missings[:,j] = indʲ;
+
+        elseif j > 1
+
+            # Iterates until ind_missings[:,j] is neither a vector of zeros, nor already included in ind_missings
+            while ind_missings[:,j] == zeros(d) || is_vector_in_matrix(ind_missings[:,j], ind_missings[:, 1:j-1])
+
+                # Get index
+                indʲ = collect(1:Tn);
+                rand_without_replacement!(indʲ, Tn-d);
+
+                # Store index
+                ind_missings[:,j] = indʲ;
+            end
+        end
 
         # Add (artificial) missing observations
-        vec_Yᵇ = FloatVectorWithMissings(vec_Y);
-        vec_Yᵇ[ind_missings[:,b]] = missing;
+        vec_Yʲ = copy(vec_Y);
+        vec_Yʲ[ind_missings[:,j]] .= missing;
 
         # Store data
-        if n == 1
-            jackknife_data[b] = copy(vec_Yᵇ);
-        else
-            jackknife_data[b] = reshape(vec_Yᵇ, T, n);
-        end
+        jackknife_data[j] = reshape(vec_Yʲ, n, T);
     end
 
     # Return jackknife_data

@@ -76,6 +76,17 @@ julia> std_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
 std_skipmissing(X::JVector) = std(skipmissing(X));
 std_skipmissing(X::JArray) = vcat([std_skipmissing(X[i,:]) for i=1:size(X,1)]...);
 
+"""
+    is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix)
+
+Check whether the vector `vect` is included in the matrix `matr`.
+
+# Examples
+julia> is_vector_in_matrix([1;2], [1 2; 2 3])
+true
+"""
+is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix) = sum(sum(vect.==matr, dims=1).==length(vect)) > 0;
+
 
 #=
 --------------------------------------------------------------------------------------------------------------------------------
@@ -235,17 +246,17 @@ Combinatorics and probability
 =#
 
 """
-    combinations(n::Int64, k::Int64)
+    no_combinations(n::Int64, k::Int64)
 
 Compute the binomial coefficient of `n` observations and `k` groups, for big integers.
 
 # Examples
 ```jldoctest
-julia> combinations(1000000,100000)
+julia> no_combinations(1000000,100000)
 7.333191945934207610471288280331309569215030711272858517142085449641265002716664e+141178
 ```
 """
-combinations(n::Int64, k::Int64) = factorial(big(n))/(factorial(big(k))*factorial(big(n-k)));
+no_combinations(n::Int64, k::Int64) = factorial(big(n))/(factorial(big(k))*factorial(big(n-k)));
 
 """
     rand_without_replacement!(P::Array{Int64,1}, d::Int64)
