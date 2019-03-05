@@ -5,7 +5,7 @@ module ElasticNetVAR
 	using LinearAlgebra
 	using Statistics;
 	using Distributions;
-
+	
 	const local_path = dirname(@__FILE__);
 
 	# Aliases (types)
@@ -33,5 +33,5 @@ module ElasticNetVAR
 	export kalman;
 	export coordinate_descent, ecm;
 	export block_jackknife, artificial_jackknife;
-	export fc_err;
+	export fc_err, jackknife_err;
 end

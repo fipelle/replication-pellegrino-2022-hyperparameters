@@ -55,3 +55,38 @@ function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Numb
     # Return output
     return loss;
 end
+
+
+"""
+"""
+function jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ajk::Bool=true, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+
+    # Block jackknife
+    if ajk == false
+        jackknife_data = block_jackknife(Y, subsample);
+
+    # Artificial jackknife
+    else
+        jackknife_data = artificial_jackknife(Y, subsample, max_samples);
+    end
+
+    # Number of jackknife samples
+    samples = size(jackknife_data, 3);
+
+    # Compute jackknife loss
+    loss = 0.0;
+    for j=1:samples
+        if verb == true
+            println("jackknife_err > iteration $j (out of $samples)");
+        end
+        loss += fc_err(jackknife_data[:,:,j], p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false);
+    end
+    loss *= 1/samples;
+
+    if verb == true
+        println("");
+    end
+
+    # Return output
+    return loss;
+end
