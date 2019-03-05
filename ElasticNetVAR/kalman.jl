@@ -136,7 +136,7 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
 
         # Log likelihood
         if loglik_flag == true
-            loglik -= 0.5*(log(det(Σ_t)) + ε_t'/Σ_t*ε_t);
+            loglik -= 0.5*(logdet(Σ_t) + ε_t'/Σ_t*ε_t);
         end
     end
 
