@@ -87,6 +87,13 @@ true
 """
 is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix) = sum(sum(vect.==matr, dims=1).==length(vect)) > 0;
 
+"""
+    sym(X::Array{Float64,2})
+
+Make sure the matrix `X` is symmetric
+"""
+sym(X::Array{Float64,2}) = (X+X')/2;
+
 
 #=
 --------------------------------------------------------------------------------------------------------------------------------

@@ -5,7 +5,7 @@ module ElasticNetVAR
 	using LinearAlgebra
 	using Statistics;
 	using Distributions;
-	
+
 	const local_path = dirname(@__FILE__);
 
 	# Aliases (types)
@@ -29,7 +29,7 @@ module ElasticNetVAR
 
 	# Export
 	export JVector, JArray;
-	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, standardize, lag, companion_form, no_combinations, rand_without_replacement!;
+	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, sym, standardize, lag, companion_form, no_combinations, rand_without_replacement!;
 	export kalman;
 	export coordinate_descent, ecm;
 	export block_jackknife, artificial_jackknife;
