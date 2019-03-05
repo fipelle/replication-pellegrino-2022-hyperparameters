@@ -107,7 +107,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
     # Initial conditions
     𝔛0̂ = zeros(np+n);
-    P0̂ = reshape((Matrix(I, (np+n)^2, (np+n)^2)-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
+    P0̂ = reshape((I-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
     P0̂ = sym(P0̂);
 
     # Initialise additional variables

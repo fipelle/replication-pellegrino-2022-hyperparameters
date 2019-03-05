@@ -101,7 +101,7 @@ Make sure the inverse of `X` is symmetric
 """
 function sym_inv(X::Array{Float64,2})
     eig_dec = LinearAlgebra.eigen(sym(X));
-    return eig_dec.vectors*Diagonal(eig_dec.values)*eig_dec.vectors';
+    return eig_dec.vectors*Diagonal(eig_dec.values.^-1)*eig_dec.vectors';
 end
 
 
