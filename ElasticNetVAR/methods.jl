@@ -99,7 +99,10 @@ sym(X::Array{Float64,2}) = (X+X')/2;
 
 Make sure the inverse of `X` is symmetric
 """
-sym_inv(X::Array{Float64,2}) = sym(inv(X));
+function sym_inv(X::Array{Float64,2})
+    eig_dec = LinearAlgebra.eigen(sym(X));
+    return eig_dec.vectors*Diagonal(eig_dec.values)*eig_dec.vectors';
+end
 
 
 #=
