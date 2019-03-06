@@ -43,14 +43,29 @@ function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Numb
 
     # In-sample
     if iis == true
-        resid = (𝔛p[1:size(Y,1), :] .- Y).^2;
-        loss += mean([mean_skipmissing(resid[:,t]) for t=1:T]);
+        # Residuals
+        resid = (𝔛p[1:size(Y,1), :] - Y).^2;
+
+        # Removes t with missings only
+        ind_not_all_missings = sum(ismissing.(Y), dims=1) .!= size(Y,1);
+        ind_not_all_missings = findall(ind_not_all_missings[:]);
+        resid = resid[:, ind_not_all_missings];
+
+        # Compute loss
+        loss += mean([mean_skipmissing(resid[:,t]) for t=1:size(resid,2)]);
 
     # Out-of-sample
     else
-        resid = (𝔛p[1:size(Y,1), t0+1:end] .- Y[:, t0+1:end]).^2;
-        # Add support for column of missings
-        loss += mean([mean_skipmissing(resid[:,t]) for t=1:T-t0]);
+        # Residuals
+        resid = (𝔛p[1:size(Y,1), t0+1:end] - Y[:, t0+1:end]).^2;
+
+        # Removes t with missings only
+        ind_not_all_missings = sum(ismissing.(Y[:, t0+1:end]), dims=1) .!= size(Y,1);
+        ind_not_all_missings = findall(ind_not_all_missings[:]);
+        resid = resid[:, ind_not_all_missings];
+
+        # Compute loss
+        loss += mean([mean_skipmissing(resid[:,t]) for t=1:size(resid,2)]);
     end
 
     # Return output
