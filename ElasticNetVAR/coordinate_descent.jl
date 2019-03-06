@@ -132,7 +132,8 @@ function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Nu
     # Estimate var-cov matrix of the residuals
     V̂ = Y - Ψ̂*X;
     Σ̂ = (V̂*V̂')./T_minus_p;
-
+    Σ̂ = sym(Σ̂);
+    
     # Return output
     return Ψ̂, Σ̂;
 end

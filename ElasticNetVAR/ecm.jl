@@ -61,12 +61,12 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     Γ = [];
     for i=0:p-1
         if i == 0
-            Γ = Matrix{Float64}(I, n, n);
+            Γ = ones(n);
         else
-            Γ = cat(Γ, (β^i).*Matrix{Float64}(I, n, n), dims=[1,2]);
+            Γ = vcat(Γ, (β^i).*ones(n));
         end
     end
-    Γ = λ.*Γ;
+    Γ = Diagonal(λ.*Γ);
 
 
     #=
@@ -107,11 +107,8 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
     # Initial conditions
     𝔛0̂ = zeros(np+n);
-    P0̂ = reshape((Matrix(I, (np+n)^2, (np+n)^2)-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
-
-    # Make the inverse (perfectly) symmetric
-    P0̂ += P0̂';
-    P0̂ *= 0.5;
+    P0̂ = reshape((I-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
+    P0̂ = sym(P0̂);
 
     # Initialise additional variables
     Ψ̂ = Ĉ[1:n, 1:np];
@@ -138,7 +135,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         if iter > prerun
 
             # New penalised loglikelihood
-            pen_loglik_new = loglik - 0.5*tr(Σ̂\((1-α).*Ψ̂ + α.*(Ψ̂.*Φ̂ᵏ))*Γ*Ψ̂');
+            pen_loglik_new = loglik - 0.5*tr(sym_inv(Σ̂)*((1-α).*Ψ̂ + α.*(Ψ̂.*Φ̂ᵏ))*Γ*Ψ̂');
 
             if verb == true
                 println("ecm > iter=$(iter-prerun), penalised loglik=$(round(pen_loglik_new, digits=5))");
@@ -187,14 +184,14 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         # VAR(p) coefficients
         Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+ε);
         for i=1:n
-            Ĉ[i, 1:np] = (Ĝ + Γ.*((1-α).*Matrix(I, np, np) + α.*Φ̂ᵏ[i, :]*ones(1, np)))\F̂[i,:];
+            Ĉ[i, 1:np] = sym_inv(Ĝ + Γ.*((1-α)*I + α.*Diagonal(Φ̂ᵏ[i, :])))*F̂[i,:];
         end
 
         # Update Ψ̂
         Ψ̂ = Ĉ[1:n, 1:np];
 
         # Covariance matrix of the VAR(p) residuals
-        V̂[1:n, 1:n] = (1/T).*(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)');
+        V̂[1:n, 1:n] = sym(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)')./T;
 
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];

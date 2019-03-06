@@ -87,6 +87,24 @@ true
 """
 is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix) = sum(sum(vect.==matr, dims=1).==length(vect)) > 0;
 
+"""
+    sym(X::Array{Float64,2})
+
+Make sure the matrix `X` is symmetric.
+"""
+sym(X::Array{Float64,2}) = (X+X')/2;
+
+"""
+    sym_inv(X::Array{Float64,2})
+
+Make sure the inverse of `X` is symmetric.
+"""
+function sym_inv(X::Array{Float64,2})
+    eig_dec = LinearAlgebra.eigen(sym(X));
+    inv_matr = sym(eig_dec.vectors*Diagonal(eig_dec.values.^-1)*eig_dec.vectors');
+    return inv_matr;
+end
+
 
 #=
 --------------------------------------------------------------------------------------------------------------------------------
