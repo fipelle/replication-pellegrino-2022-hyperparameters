@@ -12,20 +12,10 @@ Y_zscored=standardize(Y) |> JArray{Float64,2};
 
 # Hyperparameters
 p=2;
-λ=0.5;
+λ=0.6;
 α=0.5;
-β=1.2;
+β=1.3;
 
-# Run
-#B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init = ecm(Y_zscored, p, λ, α, β);
-#err_iis(Y_zscored, p, λ, α, β)
-
-#=
-@time for i=1:10
-    fc_err(Y_zscored, p, λ, α, β, tol=1e-4, verb=true);
-end
-=#
-
-#iis_loss = fc_err(Y_zscored, p, λ, α, β, tol=1e-4, verb=true);
-#oos_loss = fc_err(Y_zscored, p, λ, α, β, iis=false, t0=60, tol=1e-4, verb=true);
-bjk_loss = jackknife_err(Y_zscored, p, λ, α, β, ajk=false, t0=100, tol=1e-4);
+@time iis_loss = fc_err(Y_zscored, p, λ, α, β, tol=1e-3, verb=true);
+@time oos_loss = fc_err(Y_zscored, p, λ, α, β, iis=false, t0=60, tol=1e-3, verb=true);
+@time bjk_loss = jackknife_err(Y_zscored, p, λ, α, β, ajk=false, t0=60, tol=1e-3);
