@@ -50,7 +50,7 @@ function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Nu
     np = size(X,1);
 
     # ε
-    ε = 1e-8;
+    ε = 1e-4;
 
 
     #=
@@ -133,7 +133,7 @@ function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Nu
     V̂ = Y - Ψ̂*X;
     Σ̂ = (V̂*V̂')./T_minus_p;
     Σ̂ = sym(Σ̂);
-    
+
     # Return output
     return Ψ̂, Σ̂;
 end

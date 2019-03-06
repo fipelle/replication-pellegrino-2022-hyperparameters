@@ -55,7 +55,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     end
 
     # ε
-    ε = 1e-8;
+    ε = 1e-4;
 
     # Gamma matrix
     Γ = [];
