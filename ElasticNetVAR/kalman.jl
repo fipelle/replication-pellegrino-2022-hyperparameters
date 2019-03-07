@@ -92,16 +92,11 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
             Pp[:,:,t] = sym(C*Pf[:,:,t-1]*C') + V;
         end
 
-        # Handle missing observations following the "zeroing" approach in Shumway and Stoffer (2011, pp. 345, eq. 6.79)
-        Y_t = copy(Y[:,t]);
-        B_t = copy(B);
-        R_t = copy(R);
-        missings_t = findall(ismissing.(Y_t));
-        if length(missings_t) > 0
-            Y_t[missings_t] .= 0.0;
-            B_t[missings_t, :] .= 0.0;
-            R_t[missings_t, missings_t] = Matrix(I, length(missings_t), length(missings_t));
-        end
+        # Handle missing observations
+        ind_not_missings_t = findall(ismissing.(Y[:,t]) .== false);
+        Y_t = Y[ind_not_missings_t, t];
+        B_t = B[ind_not_missings_t, :];
+        R_t = R[ind_not_missings_t, ind_not_missings_t];
 
         # Forecast error
         ε_t = Y_t - B_t*𝔛p[:,t];
@@ -120,12 +115,8 @@ function kalman(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray,
         end
 
         # Log likelihood
-        if loglik_flag == true
-            try
-                loglik -= 0.5*(logdet(Σ_t) + ε_t'*sym_inv(Σ_t)*ε_t);
-            catch
-                error("Determinant: $(det(Σ_t))");
-            end
+        if loglik_flag == true && length(ind_not_missings_t) > 0
+            loglik -= 0.5*(logdet(Σ_t) + ε_t'*sym_inv(Σ_t)*ε_t);
         end
     end
 
