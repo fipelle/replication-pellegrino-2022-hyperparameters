@@ -55,7 +55,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     end
 
     # ε
-    ε = 1e-4;
+    ε = 1e-8;
 
     # Gamma matrix
     Γ = [];
@@ -191,8 +191,11 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         Ψ̂ = Ĉ[1:n, 1:np];
 
         # Covariance matrix of the VAR(p) residuals
-        V̂[1:n, 1:n] = sym(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)')./T;
-
+        V̂[1:n, 1:n] = sym(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂') + (1-α).*sym(Ψ̂*Γ*Ψ̂') + α.*sym((Ψ̂.*sqrt.(Φ̂ᵏ))*Γ*(Ψ̂.*sqrt.(Φ̂ᵏ))');
+        V̂[1:n, 1:n] *= 1/T;
+        if .~(isposdef(V̂[1:n, 1:n]))
+            error("Sigma is not pos def");
+        end
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];
     end

@@ -92,7 +92,7 @@ is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix) = sum(sum(vect.=
 
 Make sure the matrix `X` is symmetric.
 """
-sym(X::Array{Float64,2}) = (X+X')/2;
+sym(X::Array{Float64,2}) = LinearAlgebra.Symmetric(X) |> Array; #(X+X')/2;
 
 """
     sym_inv(X::Array{Float64,2})

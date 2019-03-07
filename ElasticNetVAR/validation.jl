@@ -95,9 +95,8 @@ function jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, �
         if verb == true
             println("jackknife_err > iteration $j (out of $samples)");
         end
-        loss += fc_err(jackknife_data[:,:,j], p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false);
+        loss += fc_err(jackknife_data[:,:,j], p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false)/samples;
     end
-    loss *= 1/samples;
 
     if verb == true
         println("");

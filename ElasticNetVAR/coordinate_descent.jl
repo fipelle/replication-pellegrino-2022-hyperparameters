@@ -50,7 +50,7 @@ function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Nu
     np = size(X,1);
 
     # ε
-    ε = 1e-4;
+    ε = 1e-8;
 
 
     #=
