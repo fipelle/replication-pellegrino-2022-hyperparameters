@@ -1,6 +1,6 @@
 """
 """
-function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{Number,1}, α_grid::Array{Number,1}, β_grid::Array{Number,1}; tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{Number,1}, α_grid::Array{Number,1}, β_grid::Array{Number,1}; tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
 
     error_grid = zeros(length(p_grid)*length(λ_grid)*length(α_grid)*length(β_grid));
 
@@ -19,7 +19,7 @@ end
 
 """
 """
-function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=true, t0::Int64=1, tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=true, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
 
     # Initialise
     n, T = size(Y);
@@ -75,7 +75,7 @@ end
 
 """
 """
-function jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ajk::Bool=true, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+function jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ajk::Bool=true, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
 
     # Block jackknife
     if ajk == false

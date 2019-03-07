@@ -1,5 +1,5 @@
 """
-    coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, verb=true)
+    coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, verb=true)
 
 Estimate an elastic-net VAR(p) with the coordinate descent algorithm (Friedman et al., 2010) as in Pellegrino (2019).
 
@@ -9,14 +9,14 @@ Estimate an elastic-net VAR(p) with the coordinate descent algorithm (Friedman e
 - `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
 - `α`: weight associated to the LASSO component of the elastic-net penalty
 - `β`: additional shrinkage for distant lags (p>1)
-- `tol`: tolerance used to check convergence (default: 1e-4)
+- `tol`: tolerance used to check convergence (default: 1e-3)
 - `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
 - `verb`: Verbose output (default: true)
 
 # References
 Friedman et al. (2010) and Pellegrino (2019)
 """
-function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, verb=true)
+function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, verb=true)
 
     #=
     -----------------------------------------------------------------------------------------------------------------------------------------------------
