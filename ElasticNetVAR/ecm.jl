@@ -1,5 +1,5 @@
 """
-    ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+    ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb=true)
 
 Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2019).
 
@@ -9,7 +9,7 @@ Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2019).
 - `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
 - `α`: weight associated to the LASSO component of the elastic-net penalty
 - `β`: additional shrinkage for distant lags (p>1)
-- `tol`: tolerance used to check convergence (default: 1e-4)
+- `tol`: tolerance used to check convergence (default: 1e-3)
 - `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
 - `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
 - `verb`: Verbose output (default: true)
@@ -17,7 +17,7 @@ Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2019).
 # References
 Pellegrino (2019)
 """
-function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-4, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb=true)
 
     #=
     -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     end
 
     # ε
-    ε = 1e-4;
+    ε = 1e-8;
 
     # Gamma matrix
     Γ = [];
@@ -191,8 +191,11 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         Ψ̂ = Ĉ[1:n, 1:np];
 
         # Covariance matrix of the VAR(p) residuals
-        V̂[1:n, 1:n] = sym(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂' + Ψ̂*Γ*((1-α).*Ψ̂ + α.*Ψ̂.*Φ̂ᵏ)')./T;
-
+        V̂[1:n, 1:n] = sym(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂') + (1-α).*sym(Ψ̂*Γ*Ψ̂') + α.*sym((Ψ̂.*sqrt.(Φ̂ᵏ))*Γ*(Ψ̂.*sqrt.(Φ̂ᵏ))');
+        V̂[1:n, 1:n] *= 1/T;
+        if .~(isposdef(V̂[1:n, 1:n]))
+            error("Sigma is not pos def");
+        end
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];
     end
