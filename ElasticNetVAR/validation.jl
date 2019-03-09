@@ -1,5 +1,5 @@
 """
-    select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{Number,1}, α_grid::Array{Number,1}, β_grid::Array{Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+    select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{Number,1}, α_grid::Array{Number,1}, β_grid::Array{Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
 Select the tuning hyper-parameters for the elastic-net vector autoregression.
 
@@ -17,11 +17,12 @@ Select the tuning hyper-parameters for the elastic-net vector autoregression.
 - `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
 - `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
 - `verb`: Verbose output (default: true)
+- `standardize_Y`: Standardize data (default: true)
 
 # References
 Pellegrino (2019)
 """
-function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{Number,1}, α_grid::Array{Number,1}, β_grid::Array{Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{Number,1}, α_grid::Array{Number,1}, β_grid::Array{Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
     error_grid = zeros(length(p_grid)*length(λ_grid)*length(α_grid)*length(β_grid));
     hyper_grid = zeros(4, length(p_grid)*length(λ_grid)*length(α_grid)*length(β_grid))
@@ -37,19 +38,19 @@ function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ
 
                     # in-sample error
                     if err_type == 1
-                        error_grid[iter] = fc_err(Y, p, λ, α, β, iis=true, tol=tol, max_iter=max_iter, prerun=prerun, verb=false);
+                        error_grid[iter] = fc_err(Y, p, λ, α, β, iis=true, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
 
                     # out-of-sample error
                     elseif err_type == 2
-                        error_grid[iter] = fc_err(Y, p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false);
+                        error_grid[iter] = fc_err(Y, p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
 
                     # artificial jackknife error
                     elseif err_type == 3
-                        error_grid[iter] = jackknife_err(Y, p, λ, α, β, ajk=true, subsample=subsample, max_samples=max_samples, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
+                        error_grid[iter] = jackknife_err(Y, p, λ, α, β, ajk=true, subsample=subsample, max_samples=max_samples, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb, standardize_Y=standardize_Y);
 
                     # block jackknife error
                     elseif err_type == 4
-                        error_grid[iter] = jackknife_err(Y, p, λ, α, β, ajk=false, subsample=subsample, max_samples=max_samples, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
+                        error_grid[iter] = jackknife_err(Y, p, λ, α, β, ajk=false, subsample=subsample, max_samples=max_samples, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb, standardize_Y=standardize_Y);
                     end
 
                     # Update hyper_grid and iter
@@ -67,7 +68,7 @@ end
 
 
 """
-    fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=false, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+    fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=false, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
 Return the in-sample / out-of-sample error.
 
@@ -83,58 +84,69 @@ Return the in-sample / out-of-sample error.
 - `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
 - `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
 - `verb`: Verbose output (default: true)
+- `standardize_Y`: Standardize data (default: true)
 
 # References
 Pellegrino (2019)
 """
-function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=false, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=false, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
     # Initialise
     n, T = size(Y);
 
-    # Estimate the penalised VAR
-
     # In-sample
     if iis == true
-        B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Y, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
 
-    # Out-of-sample
-    else
-        B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Y[:,1:t0], p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
-    end
+        # Standardize data
+        if standardize_Y == true
+            Ỹ = standardize(Y);
+        end
 
-    # Run Kalman filter and smoother
-    _, _, _, _, _, _, 𝔛p, _, _ = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
+        # Estimate the penalised VAR
+        B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Ỹ, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
 
-    # Measure out-of-sample fit
-    loss = 0.0;
+        # Run Kalman filter and smoother
+        _, _, _, _, _, _, 𝔛p, _, _ = kalman(Ỹ, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
 
-    # In-sample
-    if iis == true
         # Residuals
         resid = (𝔛p[1:size(Y,1), :] - Y).^2;
-
-        # Removes t with missings only
         ind_not_all_missings = sum(ismissing.(Y), dims=1) .!= size(Y,1);
-        ind_not_all_missings = findall(ind_not_all_missings[:]);
-        resid = resid[:, ind_not_all_missings];
-
-        # Compute loss
-        loss += mean([mean_skipmissing(resid[:,t]) for t=1:size(resid,2)]);
 
     # Out-of-sample
     else
+
+        # Run Kalman filter and smoother
+        𝔛p = zeros(n, T-t0);
+
+        for t=t0:T
+
+            # Standardize data
+            if standardize_Y == true
+                Ỹ = standardize(Y[:,1:t]);
+            end
+
+            # Estimate the penalised VAR
+            if t == t0
+                B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Ỹ, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
+
+            # Out-of-sample
+            else
+                _, _, _, _, _, _, 𝔛p_t, _, _ = kalman(Ỹ, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
+                𝔛p[:, t-t0] = 𝔛p_t[1:n, t];
+            end
+        end
+
         # Residuals
-        resid = (𝔛p[1:size(Y,1), t0+1:end] - Y[:, t0+1:end]).^2;
-
-        # Removes t with missings only
-        ind_not_all_missings = sum(ismissing.(Y[:, t0+1:end]), dims=1) .!= size(Y,1);
-        ind_not_all_missings = findall(ind_not_all_missings[:]);
-        resid = resid[:, ind_not_all_missings];
-
-        # Compute loss
-        loss += mean([mean_skipmissing(resid[:,t]) for t=1:size(resid,2)]);
+        resid = (𝔛p - Y[:, T-t0:end]).^2;
+        ind_not_all_missings = sum(ismissing.(Y[:, T-t0:end]), dims=1) .!= size(Y,1);
     end
+
+    # Removes t with missings only
+    ind_not_all_missings = findall(ind_not_all_missings[:]);
+    resid = resid[:, ind_not_all_missings];
+
+    # Compute loss
+    loss = mean([mean_skipmissing(resid[:,t]) for t=1:size(resid,2)]);
 
     # Return output
     return loss;
@@ -142,7 +154,7 @@ end
 
 
 """
-    jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ajk::Bool=true, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+    jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ajk::Bool=true, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
 Return the jackknife out-of-sample error.
 
@@ -160,11 +172,12 @@ Return the jackknife out-of-sample error.
 - `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
 - `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
 - `verb`: Verbose output (default: true)
+- `standardize_Y`: Standardize data (default: true)
 
 # References
 Pellegrino (2019)
 """
-function jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ajk::Bool=true, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true)
+function jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ajk::Bool=true, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
     # Block jackknife
     if ajk == false
@@ -184,7 +197,7 @@ function jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, �
         if verb == true
             println("jackknife_err > iteration $j (out of $samples)");
         end
-        loss += fc_err(jackknife_data[:,:,j], p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false)/samples;
+        loss += fc_err(jackknife_data[:,:,j], p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y)/samples;
     end
 
     if verb == true
