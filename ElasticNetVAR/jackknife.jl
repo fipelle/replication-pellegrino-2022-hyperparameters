@@ -48,7 +48,7 @@ function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 end
 
 """
-    artificial_jackknife(object::ArtificialJackknife)
+    artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samples::Int64)
 
 Generate artificial jackknife samples as in Pellegrino (2019).
 
