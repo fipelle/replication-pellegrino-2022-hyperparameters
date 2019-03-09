@@ -99,7 +99,7 @@ function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Numb
 
         # Standardize data
         if standardize_Y == true
-            Ỹ = standardize(Y);
+            Ỹ = standardize(Y) |> JArray{Float64};
         end
 
         # Estimate the penalised VAR
@@ -122,7 +122,7 @@ function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Numb
 
             # Standardize data
             if standardize_Y == true
-                Ỹ = standardize(Y[:,1:t]);
+                Ỹ = standardize(Y[:,1:t]) |> JArray{Float64};
             end
 
             # Estimate the penalised VAR
