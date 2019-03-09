@@ -68,12 +68,12 @@ end
 
 
 """
-    fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=false, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
+    fc_err(data::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=false, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
 Return the in-sample / out-of-sample error.
 
 # Arguments
-- `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
+- `data`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
 - `p`: number of lags in the vector autoregression
 - `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
 - `α`: weight associated to the LASSO component of the elastic-net penalty
@@ -89,24 +89,25 @@ Return the in-sample / out-of-sample error.
 # References
 Pellegrino (2019)
 """
-function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=false, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
+function fc_err(data::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; iis::Bool=false, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
     # Initialise
-    n, T = size(Y);
+    n, T = size(data);
+    Y = copy(data);
 
     # In-sample
     if iis == true
 
         # Standardize data
         if standardize_Y == true
-            Ỹ = standardize(Y) |> JArray{Float64};
+            Y = standardize(data) |> JArray{Float64};
         end
 
         # Estimate the penalised VAR
-        B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Ỹ, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
+        B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Y, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
 
         # Run Kalman filter and smoother
-        _, _, _, _, _, _, 𝔛p, _, _ = kalman(Ỹ, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
+        _, _, _, _, _, _, 𝔛p, _, _ = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
 
         # Residuals
         resid = (𝔛p[1:size(Y,1), :] - Y).^2;
@@ -122,16 +123,16 @@ function fc_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Numb
 
             # Standardize data
             if standardize_Y == true
-                Ỹ = standardize(Y[:,1:t]) |> JArray{Float64};
+                Y = standardize(data[:,1:t]) |> JArray{Float64};
             end
 
             # Estimate the penalised VAR
             if t == t0
-                B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Ỹ, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
+                B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Y, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
 
             # Out-of-sample
             else
-                _, _, _, _, _, _, 𝔛p_t, _, _ = kalman(Ỹ, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
+                _, _, _, _, _, _, 𝔛p_t, _, _ = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
                 𝔛p[:, t-t0] = 𝔛p_t[1:n, t];
             end
         end
