@@ -17,4 +17,4 @@ p=2;
 β=1.3;
 
 # Run
-B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init = ecm(Y_zscored, p, λ, α, β, tol=1e-5);
+B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, Ψ̂_init, Σ̂_init = ecm(Y_zscored, p, λ, α, β, tol=1e-3);
