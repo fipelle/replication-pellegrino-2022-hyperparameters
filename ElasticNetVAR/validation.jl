@@ -1,5 +1,5 @@
 """
-    select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{Number,1}, α_grid::Array{Number,1}, β_grid::Array{Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
+    select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{<:Number,1}, α_grid::Array{<:Number,1}, β_grid::Array{<:Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
 Select the tuning hyper-parameters for the elastic-net vector autoregression.
 
@@ -22,7 +22,7 @@ Select the tuning hyper-parameters for the elastic-net vector autoregression.
 # References
 Pellegrino (2019)
 """
-function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{Number,1}, α_grid::Array{Number,1}, β_grid::Array{Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
+function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{<:Number,1}, α_grid::Array{<:Number,1}, β_grid::Array{<:Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, standardize_Y::Bool=true)
 
     error_grid = zeros(length(p_grid)*length(λ_grid)*length(α_grid)*length(β_grid));
     hyper_grid = zeros(4, length(p_grid)*length(λ_grid)*length(α_grid)*length(β_grid))
@@ -33,7 +33,7 @@ function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ
             for α=α_grid
                 for β=β_grid
                     if verb == true
-                        println("select_hyperparameters > running iteration $iter (out of $(length(error_grid)))");
+                        println("select_hyperparameters (error estimator $err_type) > running iteration $iter (out of $(length(error_grid)))");
                     end
 
                     # in-sample error
@@ -61,9 +61,13 @@ function select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ
         end
     end
 
+    if verb == true
+        println("");
+    end
+
     # Return output
     ind_min = argmin(error_grid);
-    return hyper_grid[:, ind_min];
+    return hyper_grid[:, ind_min], error_grid, hyper_grid;
 end
 
 
@@ -93,7 +97,6 @@ function fc_err(data::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::N
 
     # Initialise
     n, T = size(data);
-    Y = copy(data);
 
     # In-sample
     if iis == true
@@ -101,6 +104,8 @@ function fc_err(data::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::N
         # Standardize data
         if standardize_Y == true
             Y = standardize(data) |> JArray{Float64};
+        else
+            Y = copy(data) |> JArray{Float64};
         end
 
         # Estimate the penalised VAR
@@ -110,7 +115,7 @@ function fc_err(data::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::N
         _, _, _, _, _, _, 𝔛p, _, _ = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
 
         # Residuals
-        resid = (𝔛p[1:size(Y,1), :] - Y).^2;
+        resid = (𝔛p[1:size(Y,1), :] - Y).^2 |> JArray{Float64};
         ind_not_all_missings = sum(ismissing.(Y), dims=1) .!= size(Y,1);
 
     # Out-of-sample
@@ -119,27 +124,38 @@ function fc_err(data::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::N
         # Run Kalman filter and smoother
         𝔛p = zeros(n, T-t0);
 
-        for t=t0:T
+        for t=t0:T-1
 
             # Standardize data
             if standardize_Y == true
                 Y = standardize(data[:,1:t]) |> JArray{Float64};
+            else
+                Y = data[:,1:t] |> JArray{Float64};
             end
 
             # Estimate the penalised VAR
             if t == t0
                 B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Y, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
+            end
 
             # Out-of-sample
-            else
-                _, _, _, _, _, _, 𝔛p_t, _, _ = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
-                𝔛p[:, t-t0] = 𝔛p_t[1:n, t];
-            end
+            Y = [Y missing.*ones(n)];
+            _, _, _, _, _, _, 𝔛p_t, _, _ = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
+
+            # Store new forecast
+            𝔛p[:, t-t0+1] = 𝔛p_t[1:n, t+1];
+        end
+
+        # Standardize data
+        if standardize_Y == true
+            Y = standardize(data) |> JArray{Float64};
+        else
+            Y = copy(data) |> JArray{Float64};
         end
 
         # Residuals
-        resid = (𝔛p - Y[:, T-t0:end]).^2;
-        ind_not_all_missings = sum(ismissing.(Y[:, T-t0:end]), dims=1) .!= size(Y,1);
+        resid = (𝔛p - Y[:, t0+1:end]).^2 |> JArray{Float64};
+        ind_not_all_missings = sum(ismissing.(Y[:, t0+1:end]), dims=1) .!= size(Y,1);
     end
 
     # Removes t with missings only
