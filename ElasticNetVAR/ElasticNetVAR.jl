@@ -33,5 +33,5 @@ module ElasticNetVAR
 	export kalman;
 	export coordinate_descent, ecm;
 	export block_jackknife, artificial_jackknife;
-	export fc_err, jackknife_err;
+	export select_hyperparameters, fc_err, jackknife_err;
 end
