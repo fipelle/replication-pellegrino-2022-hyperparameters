@@ -209,12 +209,13 @@ function jackknife_err(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, �
     samples = size(jackknife_data, 3);
 
     # Compute jackknife loss
+    if verb == true
+        println("jackknife_err > running $samples iterations on $(nworkers()) workers");
+    end
+
     loss = 0.0;
-    for j=1:samples
-        if verb == true
-            println("jackknife_err > iteration $j (out of $samples)");
-        end
-        loss += fc_err(jackknife_data[:,:,j], p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y)/samples;
+    loss = @sync @distributed (+) for j=1:samples
+        fc_err(jackknife_data[:,:,j], p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y)/samples;
     end
 
     if verb == true
