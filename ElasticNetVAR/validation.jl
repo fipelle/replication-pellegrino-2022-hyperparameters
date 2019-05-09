@@ -1,5 +1,5 @@
 """
-    select_hyperparameters(Y::JArray{Float64,2}, p_grid::Array{Int64,1}, λ_grid::Array{<:Number,1}, α_grid::Array{<:Number,1}, β_grid::Array{<:Number,1}, err_type::Int64; subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, demean_Y::Bool=true)
+    select_hyperparameters(Y::JArray{Float64,2}, p_grid_0::Array{Int64,1}, λ_grid_0::Array{<:Number,1}, α_grid_0::Array{<:Number,1}, β_grid_0::Array{<:Number,1}, err_type::Int64; rs::Bool=true, rs_draws::Int64=500, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, log_folder::String="~", demean_Y::Bool=true)
 
 Select the tuning hyper-parameters for the elastic-net vector autoregression.
 
