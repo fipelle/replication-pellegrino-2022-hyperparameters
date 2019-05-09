@@ -214,7 +214,7 @@ Return the jackknife out-of-sample error.
 - `tol`: tolerance used to check convergence (default: 1e-3)
 - `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
 - `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
-- `verb`: Verbose output (default: true)
+- `verb`: verbose output (default: true)
 - `demean_Y`: demean data (default: true)
 
 # References
