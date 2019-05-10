@@ -8,17 +8,17 @@ using JLD2;
 
 # Data
 Y=DataFrame(load("./data/data.csv")) |> JArray{Float64,2};
-Y=Y'[1:20, :] |> JArray{Float64,2};
+Y=Y'[1:20, 1:204] |> JArray{Float64,2}; # up to Dec-2006
 
 # Options
-p_grid_0=[1; 12];
+p_grid_0=[1; 1];
 λ_grid_0=[0.01; 2.0];
 α_grid_0=[0.0; 1.0];
 β_grid_0=[1.0; 2.0];
-rs_draws = 500;
+rs_draws = 17;
 subsample = 0.25;
-max_samples = 4;
-t0 = 120;
+max_samples = 8;
+t0 = 96; # up to Dec-1997
 tol = 1e-3;
 max_iter = 1000;
 prerun = 2;
