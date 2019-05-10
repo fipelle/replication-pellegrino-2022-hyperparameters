@@ -1,0 +1,1 @@
+select_hyperparameters (error estimator 3) > running iteration 1 (out of 500), γ=(1.0, 0.012, 0.01, 1.002)
