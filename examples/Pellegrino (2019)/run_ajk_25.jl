@@ -11,7 +11,7 @@ Y=DataFrame(load("./data/data.csv")) |> JArray{Float64,2};
 Y=Y'[1:20, 1:204] |> JArray{Float64,2}; # up to Dec-2006
 
 # Options
-p_grid_0=[1; 1];
+p_grid_0=[1; 6];
 λ_grid_0=[0.01; 2.0];
 α_grid_0=[0.0; 1.0];
 β_grid_0=[1.0; 2.0];
