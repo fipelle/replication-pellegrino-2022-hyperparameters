@@ -29,62 +29,83 @@ function select_hyperparameters(Y::JArray{Float64,2}, p_grid_0::Array{Int64,1}, 
 
     # Construct grid of hyperparameters - random search algorithm
     if rs == true
-        if length(p_grid) != 2 || length(λ_grid) != 2 || length(α_grid) != 2 || length(β_grid) != 2
+
+        # Error management
+        if length(p_grid_0) != 2 || length(λ_grid_0) != 2 || length(α_grid_0) != 2 || length(β_grid_0) != 2
             error("The grids include more than two entries. Random search algorithm: they must include only the bounds for the grids!")
         end
+
+        # Grids
         error_grid = zeros(rs_draws);
-        p_grid = rand(Uniform(p_grid_0[1], p_grid_0[2]), rs_draws);
-        λ_grid = rand(Uniform(λ_grid_0[1], λ_grid_0[2]), rs_draws);
-        α_grid = rand(Uniform(α_grid_0[1], α_grid_0[2]), rs_draws);
-        β_grid = rand(Uniform(β_grid_0[1], β_grid_0[2]), rs_draws);
+        γ_grid = Array{Array{Float64,1}}(UndefInitializer(), rs_draws);
+
+        for draw=1:rs_draws
+            γ_grid[draw] = vcat(rand(p_grid_0[1]:p_grid_0[2]),
+                                rand(Uniform(λ_grid_0[1], λ_grid_0[2])),
+                                rand(Uniform(α_grid_0[1], α_grid_0[2])),
+                                rand(Uniform(β_grid_0[1], β_grid_0[2])));
+        end
 
     # Use pre-defined grid of hyperparameters - grid search algorithm
     else
-        error_grid = zeros(length(p_grid)*length(λ_grid)*length(α_grid)*length(β_grid));
-        p_grid = copy(p_grid_0);
-        λ_grid = copy(λ_grid_0);
-        α_grid = copy(α_grid_0);
-        β_grid = copy(β_grid_0);
+        error_grid = zeros(length(p_grid_0)*length(λ_grid_0)*length(α_grid_0)*length(β_grid_0));
+        γ_grid = Array{Array{Float64,1}}(UndefInitializer(), length(error_grid));
+
+        iter = 1;
+        for p=p_grid
+            for λ=λ_grid
+                for α=α_grid
+                    for β=β_grid
+                        γ_grid[iter] = vcat(p, λ, α, β);
+                        iter += 1;
+                    end
+                end
+            end
+        end
     end
 
     hyper_grid = zeros(4, length(error_grid));
 
+    open("$log_folder/status.txt", "w") do io
+        write(io, "")
+    end
+
     iter = 1;
-    for p=p_grid
-        for λ=λ_grid
-            for α=α_grid
-                for β=β_grid
-                    if verb == true
-                        message = "select_hyperparameters (error estimator $err_type) > running iteration $iter (out of $(length(error_grid)))";
-                        println(message);
-                        open("$log_folder/status.txt", "a") do io
-                            write(io, "$message\n")
-                        end
-                    end
+    for γ=γ_grid
 
-                    # in-sample error
-                    if err_type == 1
-                        error_grid[iter] = fc_err(Y, p, λ, α, β, iis=true, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, demean_Y=demean_Y);
+        # Retrieve candidate hyperparameters
+        p, λ, α, β = γ;
+        p = Int64(p);
 
-                    # out-of-sample error
-                    elseif err_type == 2
-                        error_grid[iter] = fc_err(Y, p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, demean_Y=demean_Y);
-
-                    # artificial jackknife error
-                    elseif err_type == 3
-                        error_grid[iter] = jackknife_err(Y, p, λ, α, β, ajk=true, subsample=subsample, max_samples=max_samples, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb, demean_Y=demean_Y);
-
-                    # block jackknife error
-                    elseif err_type == 4
-                        error_grid[iter] = jackknife_err(Y, p, λ, α, β, ajk=false, subsample=subsample, max_samples=max_samples, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb, demean_Y=demean_Y);
-                    end
-
-                    # Update hyper_grid and iter
-                    hyper_grid[:, iter] = [p, λ, α, β];
-                    iter += 1;
-                end
+        # Update log
+        if verb == true
+            message = "select_hyperparameters (error estimator $err_type) > running iteration $iter (out of $(length(error_grid))), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
+            println(message);
+            open("$log_folder/status.txt", "a") do io
+                write(io, "$message\n")
             end
         end
+
+        # In-sample error
+        if err_type == 1
+            error_grid[iter] = fc_err(Y, p, λ, α, β, iis=true, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, demean_Y=demean_Y);
+
+        # Out-of-sample error
+        elseif err_type == 2
+            error_grid[iter] = fc_err(Y, p, λ, α, β, iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, demean_Y=demean_Y);
+
+        # Artificial jackknife error
+        elseif err_type == 3
+            error_grid[iter] = jackknife_err(Y, p, λ, α, β, ajk=true, subsample=subsample, max_samples=max_samples, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb, demean_Y=demean_Y);
+
+        # Block jackknife error
+        elseif err_type == 4
+            error_grid[iter] = jackknife_err(Y, p, λ, α, β, ajk=false, subsample=subsample, max_samples=max_samples, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb, demean_Y=demean_Y);
+        end
+
+        # Update hyper_grid and iter
+        hyper_grid[:, iter] = [p, λ, α, β];
+        iter += 1;
     end
 
     if verb == true
@@ -150,34 +171,20 @@ function fc_err(data::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::N
         # Run Kalman filter and smoother
         𝔛p = zeros(n, T-t0);
 
-        for t=t0:T-1
-
-            # Demean data
-            if demean_Y == true
-                Y = demean(data[:,1:t]) |> JArray{Float64};
-            else
-                Y = data[:,1:t] |> JArray{Float64};
-            end
-
-            # Estimate the penalised VAR
-            if t == t0
-                B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Y, p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
-            end
-
-            # Out-of-sample
-            Y = [Y missing.*ones(n)];
-            _, _, _, _, _, _, 𝔛p_t, _, _ = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
-
-            # Store new forecast
-            𝔛p[:, t-t0+1] = 𝔛p_t[1:n, t+1];
-        end
-
-        # Demean data
         if demean_Y == true
-            Y = demean(data) |> JArray{Float64};
+            Y = data.-mean_skipmissing(data[:,1:t0]) |> JArray{Float64};
         else
-            Y = copy(data) |> JArray{Float64};
+            Y = data[:,1:t] |> JArray{Float64};
         end
+
+        # Estimate the penalised VAR
+        B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂, _, _ = ecm(Y[:,1:t0], p, λ, α, β, tol=tol, max_iter=max_iter, prerun=prerun, verb=verb);
+
+        # Out-of-sample
+        _, _, _, _, _, _, 𝔛p_t, _, _ = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=false, kf_only_flag=true);
+
+        # Store new forecast
+        𝔛p .= 𝔛p_t[1:n, t0+1:end];
 
         # Residuals
         resid = (𝔛p - Y[:, t0+1:end]).^2 |> JArray{Float64};
