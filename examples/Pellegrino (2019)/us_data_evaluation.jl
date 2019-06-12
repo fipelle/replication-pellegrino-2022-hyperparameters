@@ -1,6 +1,8 @@
 # Libraries
 include("./../../ElasticNetVAR/ElasticNetVAR.jl");
 using Main.ElasticNetVAR;
+using Random;
+using DataFrames;
 using FileIO;
 using JLD2;
 
@@ -10,15 +12,15 @@ using DataFrames;
 
 # Data
 Y=DataFrame(load("./data/data.csv")) |> JArray{Float64,2};
-Y=Y' |> JArray{Float64,2};
+Y=Y' |> JArray{Float64,2}; # full data
 
 # Options
-t0 = 120; # after the hyperparameter selection (hence, after 120)
+t0 = 205; # after the hyperparameter selection (hence, after 205)
 tol = 1e-3;
 max_iter = 1000;
 prerun = 2;
 verb = true;
-standardize_Y = true;
+demean_Y = true;
 
 
 #=
@@ -27,72 +29,44 @@ Evaluation
 ---------------------------------------------------------------
 =#
 
-iis_γ = zeros(4, 4);
-oos_γ = zeros(4, 4);
-bjk_10_γ = zeros(4, 4);
-bjk_20_γ = zeros(4, 4);
-ajk_10_γ = zeros(4, 4);
-ajk_20_γ = zeros(4, 4);
+iis_γ = zeros(4, 3);
+oos_γ = zeros(4, 3);
+bjk_25_γ = zeros(4, 3);
+ajk_25_γ = zeros(4, 3);
 
-iis_err = zeros(4);
-oos_err = zeros(4);
-bjk_10_err = zeros(4);
-bjk_20_err = zeros(4);
-ajk_10_err = zeros(4);
-ajk_20_err = zeros(4);
-
-iis_real_err = zeros(4);
-oos_real_err = zeros(4);
-bjk_10_real_err = zeros(4);
-bjk_20_real_err = zeros(4);
-ajk_10_real_err = zeros(4);
-ajk_20_real_err = zeros(4);
-
-α_selected = [0 0.5 1]
-
-for j=1:3
-
-    # Exp. err. and γ
-    iis_err[j], iis_γ[:,j] = get_us_results("./results/iis_hyperparameters.jld2", α_selected[j]);
-    oos_err[j], oos_γ[:,j] = get_us_results("./results/oos_hyperparameters.jld2", α_selected[j]);
-    bjk_10_err[j], bjk_10_γ[:,j] = get_us_results("./results/bjk_hyperparameters_10.jld2", α_selected[j]);
-    bjk_20_err[j], bjk_20_γ[:,j] = get_us_results("./results/bjk_hyperparameters_20.jld2", α_selected[j]);
-    ajk_10_err[j], ajk_10_γ[:,j] = get_us_results("./results/ajk_hyperparameters_10.jld2", α_selected[j]);
-    ajk_20_err[j], ajk_20_γ[:,j] = get_us_results("./results/ajk_hyperparameters_20.jld2", α_selected[j]);
-
-    # OOS results
-    iis_real_err[j] = fc_err(Y, iis_γ[1,j] |> Int64, iis_γ[2,j], iis_γ[3,j], iis_γ[4,j], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-    oos_real_err[j] = fc_err(Y, oos_γ[1,j] |> Int64, oos_γ[2,j], oos_γ[3,j], oos_γ[4,j], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-    bjk_10_real_err[j] = fc_err(Y, bjk_10_γ[1,j] |> Int64, bjk_10_γ[2,j], bjk_10_γ[3,j], bjk_10_γ[4,j], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-    bjk_20_real_err[j] = fc_err(Y, bjk_20_γ[1,j] |> Int64, bjk_20_γ[2,j], bjk_20_γ[3,j], bjk_20_γ[4,j], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-    ajk_10_real_err[j] = fc_err(Y, ajk_10_γ[1,j] |> Int64, ajk_10_γ[2,j], ajk_10_γ[3,j], ajk_10_γ[4,j], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-    ajk_20_real_err[j] = fc_err(Y, ajk_20_γ[1,j] |> Int64, ajk_20_γ[2,j], ajk_20_γ[3,j], ajk_20_γ[4,j], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
+# Exp. err. and γ
+lag_selected = [2,4];
+for j=1:2
+    iis_γ[:,j] = get_us_results("./results/iis_hyperparameters.jld2", lag_selected[j]);
+    oos_γ[:,j] = get_us_results("./results/oos_hyperparameters.jld2", lag_selected[j]);
+    bjk_25_γ[:,j] = get_us_results("./results/bjk_hyperparameters_25.jld2", lag_selected[j]);
+    ajk_25_γ[:,j] = get_us_results("./results/ajk_hyperparameters_25.jld2", lag_selected[j]);
 end
 
 # Exp. err. and γ
-iis_err[4], iis_γ[:,4] = get_us_results("./results/iis_hyperparameters.jld2");
-oos_err[4], oos_γ[:,4] = get_us_results("./results/oos_hyperparameters.jld2");
-bjk_10_err[4], bjk_10_γ[:,4] = get_us_results("./results/bjk_hyperparameters_10.jld2");
-bjk_20_err[4], bjk_20_γ[:,4] = get_us_results("./results/bjk_hyperparameters_20.jld2");
-ajk_10_err[4], ajk_10_γ[:,4] = get_us_results("./results/ajk_hyperparameters_10.jld2");
-ajk_20_err[4], ajk_20_γ[:,4] = get_us_results("./results/ajk_hyperparameters_20.jld2");
+iis_γ[:,3] = get_us_results("./results/iis_hyperparameters.jld2");
+oos_γ[:,3] = get_us_results("./results/oos_hyperparameters.jld2");
+bjk_25_γ[:,3] = get_us_results("./results/bjk_hyperparameters_25.jld2");
+ajk_25_γ[:,3] = get_us_results("./results/ajk_hyperparameters_25.jld2");
 
-# OOS results
-iis_real_err[4] = fc_err(Y, iis_γ[1,4] |> Int64, iis_γ[2,4], iis_γ[3,4], iis_γ[4,4], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-oos_real_err[4] = fc_err(Y, oos_γ[1,4] |> Int64, oos_γ[2,4], oos_γ[3,4], oos_γ[4,4], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-bjk_10_real_err[4] = fc_err(Y, bjk_10_γ[1,4] |> Int64, bjk_10_γ[2,4], bjk_10_γ[3,4], bjk_10_γ[4,4], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-bjk_20_real_err[4] = fc_err(Y, bjk_20_γ[1,4] |> Int64, bjk_20_γ[2,4], bjk_20_γ[3,4], bjk_20_γ[4,4], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-ajk_10_real_err[4] = fc_err(Y, ajk_10_γ[1,4] |> Int64, ajk_10_γ[2,4], ajk_10_γ[3,4], ajk_10_γ[4,4], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
-ajk_20_real_err[4] = fc_err(Y, ajk_20_γ[1,4] |> Int64, ajk_20_γ[2,4], ajk_20_γ[3,4], ajk_20_γ[4,4], iis=false, t0=t0, tol=tol, max_iter=max_iter, prerun=prerun, verb=false, standardize_Y=standardize_Y);
+fc_iis = get_reconstruction(Y, iis_γ[:,3]);
+fc_oos = get_reconstruction(Y, oos_γ[:,3]);
+fc_bjk = get_reconstruction(Y, bjk_25_γ[:,3]);
+fc_ajk = get_reconstruction(Y, ajk_25_γ[:,3]);
 
+using PlolyJS;
+YY = Y.-mean_skipmissing(Y[:,1:204]);
 
-hyperparameters_table = cat(dims=[3], iis_γ'[[1,3,2,4],:], oos_γ'[[1,3,2,4],:], bjk_10_γ'[[1,3,2,4],:], bjk_20_γ'[[1,3,2,4],:], ajk_10_γ'[[1,3,2,4],:], ajk_20_γ'[[1,3,2,4],:]);
-error_table = cat(dims=[3], [iis_err[[1,3,2,4]] iis_real_err[[1,3,2,4]]],
-                            [oos_err[[1,3,2,4]] oos_real_err[[1,3,2,4]]],
-                            [bjk_10_err[[1,3,2,4]] bjk_10_real_err[[1,3,2,4]]],
-                            [bjk_20_err[[1,3,2,4]] bjk_20_real_err[[1,3,2,4]]],
-                            [ajk_10_err[[1,3,2,4]] ajk_10_real_err[[1,3,2,4]]],
-                            [ajk_20_err[[1,3,2,4]] ajk_20_real_err[[1,3,2,4]]]);
+sqerr_iis = sqrt.(mean(((YY - fc_iis).^2)[:, 205:end], dims=2));
+sqerr_bjk = sqrt.(mean(((YY - fc_bjk).^2)[:, 205:end], dims=2));
+sqerr_ajk = sqrt.(mean(((YY - fc_ajk).^2)[:, 205:end], dims=2));
+sqerr_iis_excrisis = sqrt.(mean(((YY - fc_iis).^2)[:, 241:end], dims=2));
+sqerr_bjk_excrisis = sqrt.(mean(((YY - fc_bjk).^2)[:, 241:end], dims=2));
+sqerr_ajk_excrisis = sqrt.(mean(((YY - fc_ajk).^2)[:, 241:end], dims=2));
 
-hyperparameters_table = permutedims(hyperparameters_table, [3,2,1]);
-error_table = permutedims(error_table, [3,2,1]);
+RMSFE_ajk_bjk = sqerr_ajk./sqerr_bjk;
+RMSFE_ajk_iis = sqerr_ajk./sqerr_iis;
+RMSFE_ajk_bjk_excrisis = sqerr_ajk_excrisis./sqerr_bjk_excrisis;
+RMSFE_ajk_iis_excrisis = sqerr_ajk_excrisis./sqerr_iis_excrisis;
+
+save("./out_tables.csv", DataFrame([RMSFE_ajk_bjk RMSFE_ajk_iis RMSFE_ajk_bjk_excrisis RMSFE_ajk_iis_excrisis]));
