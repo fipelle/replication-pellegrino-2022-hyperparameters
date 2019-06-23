@@ -89,38 +89,28 @@ module ElasticNetVAR
 	- `loglik`: Loglikelihood
 	- `X_prior`: Latest a-priori X
 	- `X_post`: Latest a-posteriori X
-	- `X_smooth`: Latest smoothed X
 	- `P_prior`: Latest a-priori P
 	- `P_post`: Latest a-posteriori P
-	- `P_smooth`: Latest smoothed P
 	- `history_X_prior`: History of a-priori X
 	- `history_X_post`: History of a-posteriori X
-	- `history_X_smooth`: History of the smoothed X
 	- `history_P_prior`: History of a-priori P
 	- `history_P_post`: History of a-posteriori P
-	- `history_P_smooth`: History of the smoothed P
 	"""
 	mutable struct KalmanStatus
 		t::Int64
 		loglik::Union{Float64, Nothing}
 		X_prior::Union{FloatVector, Nothing}
 		X_post::Union{FloatVector, Nothing}
-		X_smooth::Union{FloatVector, Nothing}
 		P_prior::Union{SymMatrix, Nothing}
 		P_post::Union{SymMatrix, Nothing}
-		P_smooth::Union{SymMatrix, Nothing}
 		history_X_prior::Union{Array{FloatVector,1}, Nothing}
 		history_X_post::Union{Array{FloatVector,1}, Nothing}
-		history_X_smooth::Union{Array{FloatVector,1}, Nothing}
 		history_P_prior::Union{Array{SymMatrix,1}, Nothing}
 		history_P_post::Union{Array{SymMatrix,1}, Nothing}
-		history_P_smooth::Union{Array{SymMatrix,1}, Nothing}
 	end
 
 	# KalmanStatus constructors
-	KalmanStatus() = KalmanStatus(1, [nothing for i=1:13]...);
-	KalmanStatus(m::Int64, T::Int64) = KalmanStatus(1, [nothing for i=1:7]..., [zeros(m, T) for i=1:3]..., [zeros(m, m, T) for i=1:3]...);
-	KalmanStatus(KS::KalmanSettings) = KalmanStatus(1, [nothing for i=1:7]..., [zeros(KS.m, KS.T) for i=1:3]..., [zeros(KS.m, KS.m, KS.T) for i=1:3]...);
+	KalmanStatus() = KalmanStatus(1, [nothing for i=1:9]...);
 
 
 	# ---------------------------------------------------------------------------------------------------------------------------
@@ -140,7 +130,7 @@ module ElasticNetVAR
 	export JVector, JArray, KalmanSettings, KalmanStatus;
 	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, sym, sym_inv, demean, lag, companion_form, ext_companion_form, no_combinations, rand_without_replacement!;
 	export kalman;
-	export kfilter!, kforecast;
+	export kfilter!, kforecast, ksmoother;
 	export coordinate_descent, ecm;
 	export block_jackknife, artificial_jackknife;
 	export select_hyperparameters, fc_err, jackknife_err;
