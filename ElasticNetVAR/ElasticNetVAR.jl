@@ -17,6 +17,7 @@ module ElasticNetVAR
 	# Aliases (types)
 	const FloatVector  = Array{Float64,1};
 	const FloatArray   = Array{Float64};
+	const SymMatrix    = Symmetric{Float64,Array{Float64,2}};
 	const JVector{T}   = Array{Union{Missing, T}, 1};
     const JArray{T, N} = Array{Union{Missing, T}, N};
 
@@ -53,11 +54,11 @@ module ElasticNetVAR
 	struct KalmanSettings
 		Y::JArray{Float64}
 		B::FloatArray
-		R::FloatArray
+		R::SymMatrix
 		C::FloatArray
-		V::FloatArray
+		V::SymMatrix
 		X0::FloatVector
-		P0::FloatArray
+		P0::SymMatrix
 		n::Int64
 		T::Int64
 		m::Int64
@@ -66,14 +67,13 @@ module ElasticNetVAR
 	end
 
 	# KalmanSettings constructor
-	function KalmanSettings(Y::JArray{Float64}, B::FloatArray, R::FloatArray, C::FloatArray, V::FloatArray; compute_loglik::Bool=true, store_history::Bool=true)
+	function KalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix, C::FloatArray, V::SymMatrix; compute_loglik::Bool=true, store_history::Bool=true)
 
 		# Compute default value for missing parameters
 		n, T = size(Y);
 		m = size(B,2);
 		X0 = zeros(m);
-		P0 = reshape((I-kron(C, C))\V[:], m, m);
-		P0 = sym(P0);
+		P0 = Symmetric(reshape((I-kron(C, C))\V[:], m, m));
 
 		# Return KalmanSettings
 		return KalmanSettings(Y, B, R, C, V, X0, P0, n, T, m, compute_loglik, store_history);
@@ -106,15 +106,15 @@ module ElasticNetVAR
 		X_prior::Union{FloatVector, Nothing}
 		X_post::Union{FloatVector, Nothing}
 		X_smooth::Union{FloatVector, Nothing}
-		P_prior::Union{FloatArray, Nothing}
-		P_post::Union{FloatArray, Nothing}
-		P_smooth::Union{FloatArray, Nothing}
+		P_prior::Union{SymMatrix, Nothing}
+		P_post::Union{SymMatrix, Nothing}
+		P_smooth::Union{SymMatrix, Nothing}
 		history_X_prior::Union{Array{FloatVector,1}, Nothing}
 		history_X_post::Union{Array{FloatVector,1}, Nothing}
 		history_X_smooth::Union{Array{FloatVector,1}, Nothing}
-		history_P_prior::Union{Array{FloatArray,1}, Nothing}
-		history_P_post::Union{Array{FloatArray,1}, Nothing}
-		history_P_smooth::Union{Array{FloatArray,1}, Nothing}
+		history_P_prior::Union{Array{SymMatrix,1}, Nothing}
+		history_P_post::Union{Array{SymMatrix,1}, Nothing}
+		history_P_smooth::Union{Array{SymMatrix,1}, Nothing}
 	end
 
 	# KalmanStatus constructors

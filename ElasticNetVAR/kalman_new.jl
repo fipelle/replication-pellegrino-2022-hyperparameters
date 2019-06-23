@@ -16,27 +16,8 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 """
 function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 
-    # Initial forecast
-    if status.t == 1
-        status.X_prior = settings.C * settings.X0;
-        status.P_prior = sym(settings.C * settings.P0 * settings.C') + settings.V;
-
-        if settings.compute_loglik == true
-            status.loglik = 0.0;
-        end
-
-        if settings.store_history == true
-            status.history_X_prior = Array{FloatVector,1}();
-            status.history_X_post = Array{FloatVector,1}();
-            status.history_P_prior = Array{FloatArray,1}();
-            status.history_P_post = Array{FloatArray,1}();
-        end
-
-    # Standard forecast
-    else
-        status.X_prior = settings.C * status.X_post;
-        status.P_prior = sym(settings.C * status.P_post * settings.C') + settings.V;
-    end
+    # A-priori prediction
+    _kfilter!(typeof(status.X_prior), settings, status);
 
     # Handle missing observations
     ind_not_missings = kmissing(settings, status);
@@ -54,6 +35,34 @@ function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 
     # Update status.t
     status.t += 1;
+end
+
+"""
+Function barrier for first a-priori prediction of the Kalman filter.
+"""
+function _kfilter!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
+
+    status.X_prior = settings.C * settings.X0;
+    status.P_prior = Symmetric(settings.C * settings.P0 * settings.C' + settings.V)::SymMatrix;
+
+    if settings.compute_loglik == true
+        status.loglik = 0.0;
+    end
+
+    if settings.store_history == true
+        status.history_X_prior = Array{FloatVector,1}();
+        status.history_X_post = Array{FloatVector,1}();
+        status.history_P_prior = Array{SymMatrix,1}();
+        status.history_P_post = Array{SymMatrix,1}();
+    end
+end
+
+"""
+Function barrier for standard a-priori prediction of the Kalman filter.
+"""
+function _kfilter!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
+    status.X_prior = settings.C * status.X_post;
+    status.P_prior = Symmetric(settings.C * status.P_post * settings.C' + settings.V)::SymMatrix;
 end
 
 """
@@ -89,14 +98,14 @@ function kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missin
 
     # Forecast error
     ε_t = Y_t - B_t*status.X_prior;
-    Σ_t = sym(B_t*status.P_prior*B_t') + R_t;
+    Σ_t = Symmetric(B_t*status.P_prior*B_t' + R_t)::SymMatrix;
 
     # Kalman gain
-    K_t = status.P_prior*B_t'*sym_inv(Σ_t);
+    K_t = status.P_prior*B_t'*inv(Σ_t);
 
     # A posteriori estimates
     status.X_post = status.X_prior + K_t*ε_t;
-    status.P_post = status.P_prior - sym(K_t*B_t*status.P_prior);
+    status.P_post = Symmetric(status.P_prior - K_t*B_t*status.P_prior)::SymMatrix;
 
     # Update log likelihood
     if settings.compute_loglik == true
@@ -125,8 +134,8 @@ Update status.loglik.
 - `ε_t`: Forecast error
 - `Σ_t`: Forecast error covariance
 """
-function kloglik!(status::KalmanStatus, ε_t::FloatVector, Σ_t::FloatArray)
-    status.loglik -= 0.5*(logdet(Σ_t) + ε_t'*sym_inv(Σ_t)*ε_t);
+function kloglik!(status::KalmanStatus, ε_t::FloatVector, Σ_t::SymMatrix)
+    status.loglik -= 0.5*(logdet(Σ_t) + ε_t'*inv(Σ_t)*ε_t);
 end
 
 function kforecast()
