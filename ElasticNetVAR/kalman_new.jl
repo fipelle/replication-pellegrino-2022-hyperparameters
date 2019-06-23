@@ -1,4 +1,6 @@
 """
+    kfilter!(settings::KalmanSettings, status::KalmanStatus)
+
 Kalman filter: a-priori prediction and a-posteriori update.
 
 # Model
@@ -38,22 +40,28 @@ function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 end
 
 """
-Kalman filter a-priori prediction. Measurements are observed (or partially observed) at time t.
+    kpredict!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
 
-# Arguments (case 1)
+Kalman filter a-priori prediction for t==1.
+
+# Arguments
 - `::Type{Nothing}`: first prediction
 - `settings`: KalmanSettings struct
 - `status`: KalmanStatus struct
 
-# Arguments (case 2)
+    kpredict!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
+
+Kalman filter a-priori prediction.
+
+# Arguments
 - `::Type{FloatVector}`: standard prediction
 - `settings`: KalmanSettings struct
 - `status`: KalmanStatus struct
 """
 function kpredict!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
 
-    status.X_prior = settings.C * settings.X0;
-    status.P_prior = Symmetric(settings.C * settings.P0 * settings.C' + settings.V)::SymMatrix;
+    status.X_prior = kpredict(settings.X0, settings);
+    status.P_prior = kpredict(settings.P0, settings);
 
     if settings.compute_loglik == true
         status.loglik = 0.0;
@@ -68,11 +76,33 @@ function kpredict!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStat
 end
 
 function kpredict!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
-    status.X_prior = settings.C * status.X_post;
-    status.P_prior = Symmetric(settings.C * status.P_post * settings.C' + settings.V)::SymMatrix;
+    status.X_prior = kpredict(status.X_post, settings);
+    status.P_prior = kpredict(status.P_post, settings);
 end
 
 """
+    kpredict(X::FloatVector, settings::KalmanSettings)
+
+Kalman filter a-priori prediction for X.
+
+# Arguments
+- `X`: Last expected value of the states
+- `settings`: KalmanSettings struct
+
+    kpredict(X::SymMatrix, settings::KalmanSettings)
+
+Kalman filter a-priori prediction for P.
+
+# Arguments
+- `P`: Last conditional covariance the states
+- `settings`: KalmanSettings struct
+"""
+kpredict(X::FloatVector, settings::KalmanSettings) = settings.C * X;
+kpredict(P::SymMatrix, settings::KalmanSettings) = Symmetric(settings.C * P * settings.C' + settings.V)::SymMatrix;
+
+"""
+    find_observed_data(settings::KalmanSettings, status::KalmanStatus)
+
 Return position of the observed measurements at time t.
 
 # Arguments
@@ -90,12 +120,23 @@ function find_observed_data(settings::KalmanSettings, status::KalmanStatus)
 end
 
 """
+    kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Array{Int64,1})
+
 Kalman filter a-posteriori update. Measurements are observed (or partially observed) at time t.
 
 # Arguments
 - `settings`: KalmanSettings struct
 - `status`: KalmanStatus struct
 - `ind_not_missings`: Position of the observed measurements
+
+    kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Nothing)
+
+Kalman filter a-posteriori update. All measurements are not observed at time t.
+
+# Arguments
+- `settings`: KalmanSettings struct
+- `status`: KalmanStatus struct
+- `ind_not_missings`: Empty array
 """
 function kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Array{Int64,1})
 
@@ -120,20 +161,14 @@ function kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missin
     end
 end
 
-"""
-Kalman filter a-posteriori update. All measurements are not observed at time t.
-
-# Arguments
-- `settings`: KalmanSettings struct
-- `status`: KalmanStatus struct
-- `ind_not_missings`: Empty array
-"""
 function kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Nothing)
     status.X_post = copy(status.X_prior);
     status.P_post = copy(status.P_prior);
 end
 
 """
+    update_loglik!(status::KalmanStatus, ε_t::FloatVector, Σ_t::SymMatrix)
+    
 Update status.loglik.
 
 # Arguments
@@ -145,7 +180,33 @@ function update_loglik!(status::KalmanStatus, ε_t::FloatVector, Σ_t::SymMatrix
     status.loglik -= 0.5*(logdet(Σ_t) + ε_t'*inv(Σ_t)*ε_t);
 end
 
-function kforecast()
+"""
+"""
+function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, h::Int64)
+
+    history_X = Array{FloatVector,1}();
+
+    for horizon=1:h
+        X = kpredict(X, settings);
+        push!(history_X, X);
+    end
+
+    return history_X;
+end
+
+function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, P::Union{SymMatrix, Nothing}, h::Int64)
+
+    history_X = Array{FloatVector,1}();
+    history_P = Array{SymMatrix,1}();
+
+    for horizon=1:h
+        X = kpredict(X, settings);
+        P = kpredict(P, settings);
+        push!(history_X, X);
+        push!(history_P, P);
+    end
+
+    return history_X, history_P;
 end
 
 function ksmooth()
