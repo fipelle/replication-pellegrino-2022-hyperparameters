@@ -18,7 +18,7 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 """
 function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 
-    # A-priori prediction (via function barrier)
+    # A-priori prediction
     kpredict!(typeof(status.X_prior), settings, status);
 
     # Handle missing observations
@@ -168,7 +168,7 @@ end
 
 """
     update_loglik!(status::KalmanStatus, ε_t::FloatVector, Σ_t::SymMatrix)
-    
+
 Update status.loglik.
 
 # Arguments
@@ -181,6 +181,13 @@ function update_loglik!(status::KalmanStatus, ε_t::FloatVector, Σ_t::SymMatrix
 end
 
 """
+    kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, h::Int64)
+
+Forecast X up to h-steps ahead.
+
+    kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, P::Union{SymMatrix, Nothing}, h::Int64)
+
+Forecast X and P up to h-steps ahead.
 """
 function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, h::Int64)
 
