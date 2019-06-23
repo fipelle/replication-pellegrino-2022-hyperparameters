@@ -191,21 +191,26 @@ Forecast X and P up to h-steps ahead.
 """
 function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, h::Int64)
 
+    # Initialise forecast history
     history_X = Array{FloatVector,1}();
 
+    # Loop over forecast horizons
     for horizon=1:h
         X = kpredict(X, settings);
         push!(history_X, X);
     end
 
+    # Return output
     return history_X;
 end
 
 function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, P::Union{SymMatrix, Nothing}, h::Int64)
 
+    # Initialise forecast history
     history_X = Array{FloatVector,1}();
     history_P = Array{SymMatrix,1}();
 
+    # Loop over forecast horizons
     for horizon=1:h
         X = kpredict(X, settings);
         P = kpredict(P, settings);
@@ -213,8 +218,56 @@ function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, P::
         push!(history_P, P);
     end
 
+    # Return output
     return history_X, history_P;
 end
 
-function ksmooth()
+"""
+"""
+function ksmoother(settings::KalmanSettings, status::KalmanStatus)
+
+    # Initialise smoother history
+    history_X = Array{FloatVector,1}();
+    history_P = Array{SymMatrix,1}();
+    push!(history_X, copy(status.X_post));
+    push!(history_P, copy(status.P_post));
+
+    # Initialise smoothed values for t==0
+    X0 = copy(settings.X0);
+    P0 = copy(settings.P0);
+
+    # Loop over t (note: status.t-1 is correct)
+    for t=status.t-1:-1:1
+
+        # Pointers (input)
+        Xp = status.history_X_prior[t];
+        Pp = status.history_P_prior[t];
+
+        if t > 1
+            Xf_lagged = status.history_X_post[t-1];
+            Pf_lagged = status.history_P_post[t-1];
+        else
+            Xf_lagged = settings.X0;
+            Pf_lagged = settings.P0;
+        end
+
+        # Pointers (output)
+        Xs = history_X[1];
+        Ps = history_P[1];
+
+        # J_{t-1}
+        J1 = Pf_lagged*settings.C'*inv(Pp);
+
+        # Smoothed estimates for t-1
+        if t > 1
+            pushfirst!(history_X, Xf_lagged + J1*(Xs-Xp));
+            pushfirst!(history_P, Symmetric(Pf_lagged + J1*(Ps-Pp)*J1')::SymMatrix);
+        else
+            X0 = Xf_lagged + J1*(Xs-Xp);
+            P0 = Symmetric(Pf_lagged + J1*(Ps-Pp)*J1')::SymMatrix;
+        end
+    end
+
+    # Return output
+    return history_X, history_P, X0, P0;
 end
