@@ -16,11 +16,11 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 """
 function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 
-    # A-priori prediction
-    _kfilter!(typeof(status.X_prior), settings, status);
+    # A-priori prediction (via function barrier)
+    kpredict!(typeof(status.X_prior), settings, status);
 
     # Handle missing observations
-    ind_not_missings = kmissing(settings, status);
+    ind_not_missings = find_observed_data(settings, status);
 
     # Ex-post update
     kupdate!(settings, status, ind_not_missings);
@@ -38,9 +38,19 @@ function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 end
 
 """
-Function barrier for first a-priori prediction of the Kalman filter.
+Kalman filter a-priori prediction. Measurements are observed (or partially observed) at time t.
+
+# Arguments (case 1)
+- `::Type{Nothing}`: first prediction
+- `settings`: KalmanSettings struct
+- `status`: KalmanStatus struct
+
+# Arguments (case 2)
+- `::Type{FloatVector}`: standard prediction
+- `settings`: KalmanSettings struct
+- `status`: KalmanStatus struct
 """
-function _kfilter!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
+function kpredict!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
 
     status.X_prior = settings.C * settings.X0;
     status.P_prior = Symmetric(settings.C * settings.P0 * settings.C' + settings.V)::SymMatrix;
@@ -57,10 +67,7 @@ function _kfilter!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStat
     end
 end
 
-"""
-Function barrier for standard a-priori prediction of the Kalman filter.
-"""
-function _kfilter!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
+function kpredict!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
     status.X_prior = settings.C * status.X_post;
     status.P_prior = Symmetric(settings.C * status.P_post * settings.C' + settings.V)::SymMatrix;
 end
@@ -72,7 +79,7 @@ Return position of the observed measurements at time t.
 - `settings`: KalmanSettings struct
 - `status`: KalmanStatus struct
 """
-function kmissing(settings::KalmanSettings, status::KalmanStatus)
+function find_observed_data(settings::KalmanSettings, status::KalmanStatus)
     if status.t <= settings.T
         Y_t_all = @view settings.Y[:, status.t];
         ind_not_missings = findall(ismissing.(Y_t_all) .== false);
@@ -109,7 +116,7 @@ function kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missin
 
     # Update log likelihood
     if settings.compute_loglik == true
-        kloglik!(status, ε_t, Σ_t);
+        update_loglik!(status, ε_t, Σ_t);
     end
 end
 
@@ -134,7 +141,7 @@ Update status.loglik.
 - `ε_t`: Forecast error
 - `Σ_t`: Forecast error covariance
 """
-function kloglik!(status::KalmanStatus, ε_t::FloatVector, Σ_t::SymMatrix)
+function update_loglik!(status::KalmanStatus, ε_t::FloatVector, Σ_t::SymMatrix)
     status.loglik -= 0.5*(logdet(Σ_t) + ε_t'*inv(Σ_t)*ε_t);
 end
 
