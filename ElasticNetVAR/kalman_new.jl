@@ -19,13 +19,13 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 
     # A-priori prediction
-    kpredict!(typeof(status.X_prior), settings, status);
+    apriori!(typeof(status.X_prior), settings, status);
 
     # Handle missing observations
     ind_not_missings = find_observed_data(settings, status);
 
     # Ex-post update
-    kupdate!(settings, status, ind_not_missings);
+    aposteriori!(settings, status, ind_not_missings);
 
     # Update history of *_prior and *_post
     if settings.store_history == true
@@ -40,7 +40,7 @@ function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 end
 
 """
-    kpredict!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
+    apriori!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
 
 Kalman filter a-priori prediction for t==1.
 
@@ -49,7 +49,7 @@ Kalman filter a-priori prediction for t==1.
 - `settings`: KalmanSettings struct
 - `status`: KalmanStatus struct
 
-    kpredict!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
+    apriori!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
 
 Kalman filter a-priori prediction.
 
@@ -58,10 +58,10 @@ Kalman filter a-priori prediction.
 - `settings`: KalmanSettings struct
 - `status`: KalmanStatus struct
 """
-function kpredict!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
+function apriori!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStatus)
 
-    status.X_prior = kpredict(settings.X0, settings);
-    status.P_prior = kpredict(settings.P0, settings);
+    status.X_prior = apriori(settings.X0, settings);
+    status.P_prior = apriori(settings.P0, settings);
 
     if settings.compute_loglik == true
         status.loglik = 0.0;
@@ -75,13 +75,13 @@ function kpredict!(::Type{Nothing}, settings::KalmanSettings, status::KalmanStat
     end
 end
 
-function kpredict!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
-    status.X_prior = kpredict(status.X_post, settings);
-    status.P_prior = kpredict(status.P_post, settings);
+function apriori!(::Type{FloatVector}, settings::KalmanSettings, status::KalmanStatus)
+    status.X_prior = apriori(status.X_post, settings);
+    status.P_prior = apriori(status.P_post, settings);
 end
 
 """
-    kpredict(X::FloatVector, settings::KalmanSettings)
+    apriori(X::FloatVector, settings::KalmanSettings)
 
 Kalman filter a-priori prediction for X.
 
@@ -89,7 +89,7 @@ Kalman filter a-priori prediction for X.
 - `X`: Last expected value of the states
 - `settings`: KalmanSettings struct
 
-    kpredict(X::SymMatrix, settings::KalmanSettings)
+    apriori(X::SymMatrix, settings::KalmanSettings)
 
 Kalman filter a-priori prediction for P.
 
@@ -97,8 +97,8 @@ Kalman filter a-priori prediction for P.
 - `P`: Last conditional covariance the states
 - `settings`: KalmanSettings struct
 """
-kpredict(X::FloatVector, settings::KalmanSettings) = settings.C * X;
-kpredict(P::SymMatrix, settings::KalmanSettings) = Symmetric(settings.C * P * settings.C' + settings.V)::SymMatrix;
+apriori(X::FloatVector, settings::KalmanSettings) = settings.C * X;
+apriori(P::SymMatrix, settings::KalmanSettings) = Symmetric(settings.C * P * settings.C' + settings.V)::SymMatrix;
 
 """
     find_observed_data(settings::KalmanSettings, status::KalmanStatus)
@@ -120,7 +120,7 @@ function find_observed_data(settings::KalmanSettings, status::KalmanStatus)
 end
 
 """
-    kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Array{Int64,1})
+    aposteriori!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Array{Int64,1})
 
 Kalman filter a-posteriori update. Measurements are observed (or partially observed) at time t.
 
@@ -129,7 +129,7 @@ Kalman filter a-posteriori update. Measurements are observed (or partially obser
 - `status`: KalmanStatus struct
 - `ind_not_missings`: Position of the observed measurements
 
-    kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Nothing)
+    aposteriori!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Nothing)
 
 Kalman filter a-posteriori update. All measurements are not observed at time t.
 
@@ -138,7 +138,7 @@ Kalman filter a-posteriori update. All measurements are not observed at time t.
 - `status`: KalmanStatus struct
 - `ind_not_missings`: Empty array
 """
-function kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Array{Int64,1})
+function aposteriori!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Array{Int64,1})
 
     Y_t = @view settings.Y[ind_not_missings, status.t];
     B_t = @view settings.B[ind_not_missings, :];
@@ -161,7 +161,7 @@ function kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missin
     end
 end
 
-function kupdate!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Nothing)
+function aposteriori!(settings::KalmanSettings, status::KalmanStatus, ind_not_missings::Nothing)
     status.X_post = copy(status.X_prior);
     status.P_post = copy(status.P_prior);
 end
@@ -188,6 +188,15 @@ Forecast X up to h-steps ahead.
     kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, P::Union{SymMatrix, Nothing}, h::Int64)
 
 Forecast X and P up to h-steps ahead.
+
+# Model
+The state space model used below is,
+
+``Y_{t} = B*X_{t} + e_{t}``
+
+``X_{t} = C*X_{t-1} + u_{t}``
+
+Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 """
 function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, h::Int64)
 
@@ -196,7 +205,7 @@ function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, h::
 
     # Loop over forecast horizons
     for horizon=1:h
-        X = kpredict(X, settings);
+        X = apriori(X, settings);
         push!(history_X, X);
     end
 
@@ -212,8 +221,8 @@ function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, P::
 
     # Loop over forecast horizons
     for horizon=1:h
-        X = kpredict(X, settings);
-        P = kpredict(P, settings);
+        X = apriori(X, settings);
+        P = apriori(P, settings);
         push!(history_X, X);
         push!(history_P, P);
     end
@@ -223,6 +232,22 @@ function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, P::
 end
 
 """
+    ksmoother(settings::KalmanSettings, status::KalmanStatus)
+
+Kalman smoother: RTS smoother from the last evaluated time period in status to t==0.
+
+# Model
+The state space model used below is,
+
+``Y_{t} = B*X_{t} + e_{t}``
+
+``X_{t} = C*X_{t-1} + u_{t}``
+
+Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
+
+# Arguments
+- `settings`: KalmanSettings struct
+- `status`: KalmanStatus struct
 """
 function ksmoother(settings::KalmanSettings, status::KalmanStatus)
 
@@ -232,42 +257,65 @@ function ksmoother(settings::KalmanSettings, status::KalmanStatus)
     push!(history_X, copy(status.X_post));
     push!(history_P, copy(status.P_post));
 
-    # Initialise smoothed values for t==0
-    X0 = copy(settings.X0);
-    P0 = copy(settings.P0);
-
     # Loop over t (note: status.t-1 is correct)
-    for t=status.t-1:-1:1
+    for t=status.t-1:-1:2
 
-        # Pointers (input)
+        # Pointers
         Xp = status.history_X_prior[t];
         Pp = status.history_P_prior[t];
-
-        if t > 1
-            Xf_lagged = status.history_X_post[t-1];
-            Pf_lagged = status.history_P_post[t-1];
-        else
-            Xf_lagged = settings.X0;
-            Pf_lagged = settings.P0;
-        end
-
-        # Pointers (output)
+        Xf_lagged = status.history_X_post[t-1];
+        Pf_lagged = status.history_P_post[t-1];
         Xs = history_X[1];
         Ps = history_P[1];
 
-        # J_{t-1}
-        J1 = Pf_lagged*settings.C'*inv(Pp);
-
         # Smoothed estimates for t-1
-        if t > 1
-            pushfirst!(history_X, Xf_lagged + J1*(Xs-Xp));
-            pushfirst!(history_P, Symmetric(Pf_lagged + J1*(Ps-Pp)*J1')::SymMatrix);
-        else
-            X0 = Xf_lagged + J1*(Xs-Xp);
-            P0 = Symmetric(Pf_lagged + J1*(Ps-Pp)*J1')::SymMatrix;
-        end
+        J1 = compute_J1(Pf_lagged, Pp, settings);
+        pushfirst!(history_X, backwards_pass(Xf_lagged, J1, Xs, Xp));
+        pushfirst!(history_P, backwards_pass(Pf_lagged, J1, Ps, Pp));
     end
+
+    # Pointers
+    Xp = status.history_X_prior[1];
+    Pp = status.history_P_prior[1];
+    Xs = history_X[1];
+    Ps = history_P[1];
+
+    # Compute smoothed estimates for t==0
+    J1 = compute_J1(settings.P0, Pp, settings);
+    X0 = backwards_pass(settings.X0, J1, Xs, Xp);
+    P0 = backwards_pass(settings.P0, J1, Ps, Pp);
 
     # Return output
     return history_X, history_P, X0, P0;
 end
+
+"""
+    compute_J1(Pf_lagged::SymMatrix, Pp::SymMatrix, settings::KalmanSettings)
+
+Compute J_{t-1} as in Shumway and Stoffer (2011, chapter 6) to operate the RTS smoother.
+"""
+compute_J1(Pf_lagged::SymMatrix, Pp::SymMatrix, settings::KalmanSettings) = Pf_lagged*settings.C'*inv(Pp);
+
+"""
+    backwards_pass(Xf_lagged::FloatVector, J1::FloatArray, Xs::FloatVector, Xp::FloatVector)
+
+Backwards pass for X to get the smoothed states at time t-1.
+
+# Arguments
+- `Xf_lagged`: Filtered states for time t-1
+- `J1`: J_{t-1} as in Shumway and Stoffer (2011, chapter 6)
+- `Xs`: Smoothed states for time t
+- `Xp`: A-priori states for time t
+
+    backwards_pass(Pf_lagged::SymMatrix, J1::FloatArray, Ps::SymMatrix, Pp::SymMatrix)
+
+Backwards pass for P to get the smoothed conditional covariance at time t-1.
+
+# Arguments
+- `Pf_lagged`: Filtered conditional covariance for time t-1
+- `J1`: J_{t-1} as in Shumway and Stoffer (2011, chapter 6)
+- `Ps`: Smoothed conditional covariance for time t
+- `Pp`: A-priori conditional covariance for time t
+"""
+backwards_pass(Xf_lagged::FloatVector, J1::FloatArray, Xs::FloatVector, Xp::FloatVector) = Xf_lagged + J1*(Xs-Xp);
+backwards_pass(Pf_lagged::SymMatrix, J1::FloatArray, Ps::SymMatrix, Pp::SymMatrix) = Symmetric(Pf_lagged + J1*(Ps-Pp)*J1')::SymMatrix;
