@@ -131,7 +131,6 @@ module ElasticNetVAR
 	# Export
 	# ---------------------------------------------------------------------------------------------------------------------------
 
-	# Export
 	export JVector, JArray, KalmanSettings, KalmanStatus;
 	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, sym, sym_inv, demean, lag, companion_form, ext_companion_form, no_combinations, rand_without_replacement!;
 	export kalman;
