@@ -18,6 +18,9 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 """
 function kfilter!(settings::KalmanSettings, status::KalmanStatus)
 
+    # Update status.t
+    status.t += 1;
+
     # A-priori prediction
     apriori!(typeof(status.X_prior), settings, status);
 
@@ -34,9 +37,6 @@ function kfilter!(settings::KalmanSettings, status::KalmanStatus)
         push!(status.history_P_prior, status.P_prior);
         push!(status.history_P_post, status.P_post);
     end
-
-    # Update status.t
-    status.t += 1;
 end
 
 """
@@ -89,7 +89,7 @@ Kalman filter a-priori prediction for X.
 - `X`: Last expected value of the states
 - `settings`: KalmanSettings struct
 
-    apriori(X::SymMatrix, settings::KalmanSettings)
+    apriori(P::SymMatrix, settings::KalmanSettings)
 
 Kalman filter a-priori prediction for P.
 
@@ -198,10 +198,12 @@ The state space model used below is,
 
 Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 """
-function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, h::Int64)
+function kforecast(settings::KalmanSettings, Xt::Union{FloatVector, Nothing}, h::Int64)
 
     # Initialise forecast history
     history_X = Array{FloatVector,1}();
+
+    X = copy(Xt);
 
     # Loop over forecast horizons
     for horizon=1:h
@@ -213,11 +215,14 @@ function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, h::
     return history_X;
 end
 
-function kforecast(settings::KalmanSettings, X::Union{FloatVector, Nothing}, P::Union{SymMatrix, Nothing}, h::Int64)
+function kforecast(settings::KalmanSettings, Xt::Union{FloatVector, Nothing}, Pt::Union{SymMatrix, Nothing}, h::Int64)
 
     # Initialise forecast history
     history_X = Array{FloatVector,1}();
     history_P = Array{SymMatrix,1}();
+
+    X = copy(Xt);
+    P = copy(Pt);
 
     # Loop over forecast horizons
     for horizon=1:h
@@ -257,8 +262,8 @@ function ksmoother(settings::KalmanSettings, status::KalmanStatus)
     push!(history_X, copy(status.X_post));
     push!(history_P, copy(status.P_post));
 
-    # Loop over t (note: status.t-1 is correct)
-    for t=status.t-1:-1:2
+    # Loop over t
+    for t=status.t:-1:2
 
         # Pointers
         Xp = status.history_X_prior[t];

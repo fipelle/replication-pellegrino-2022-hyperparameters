@@ -110,7 +110,7 @@ module ElasticNetVAR
 	end
 
 	# KalmanStatus constructors
-	KalmanStatus() = KalmanStatus(1, [nothing for i=1:9]...);
+	KalmanStatus() = KalmanStatus(0, [nothing for i=1:9]...);
 
 
 	# ---------------------------------------------------------------------------------------------------------------------------
