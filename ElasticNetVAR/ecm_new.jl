@@ -1,72 +1,32 @@
 """
-    ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+"""
+check_bounds(X::Number, LB::Number, UB::Number) = X < LB || X > UB ? throw(DomainError) : nothing
+check_bounds(X::Number, LB::Number) = X < LB ? throw(DomainError) : nothing
+
+
+
+
+"""
+    ecm(estim_settings::EstimSettings)
 
 Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2019).
 
 # Arguments
-- `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
-- `p`: number of lags in the vector autoregression
-- `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
-- `α`: weight associated to the LASSO component of the elastic-net penalty
-- `β`: additional shrinkage for distant lags (p>1)
-- `tol`: tolerance used to check convergence (default: 1e-3)
-- `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
-- `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
-- `verb`: Verbose output (default: true)
+- `estim_settings`: settings used for the estimation
 
 # References
 Pellegrino (2019)
 """
-function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+function ecm(estim_settings::EstimSettings)
 
-    #=
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    Settings
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    =#
-
-    # Check hyper-parameters
-    if β < 1
-        error("β ≥ 1");
-    end
-
-    if α < 0 || α > 1
-        error("0 ≤ α ≤ 1");
-    end
-
-    if λ < 0
-        error("λ ≥ 0");
-    end
-
-    # Check init_iter
-    if max_iter < 3
-        error("max_iter > 2");
-    end
-
-    if prerun >= max_iter
-        error("prerun < max_iter");
-    end
-
-    # Dimensions
-    n, T = size(Y);
-    np = n*p;
-    if n < 2
-        error("This code is not compatible with univariate autoregressions");
-    end
-
-    # ε
-    ε = 1e-8;
-
-    # Gamma matrix
-    Γ = [];
-    for i=0:p-1
-        if i == 0
-            Γ = ones(n);
-        else
-            Γ = vcat(Γ, (β^i).*ones(n));
-        end
-    end
-    Γ = Diagonal(λ.*Γ);
+    # Check inputs
+    check_bounds(estim_settings.p, 1);
+    check_bounds(estim_settings.λ, 0);
+    check_bounds(estim_settings.α, 0, 1);
+    check_bounds(estim_settings.β, 1);
+    check_bounds(estim_settings.max_iter, 3);
+    check_bounds(estim_settings.prerun, estim_settings.max_iter);
+    check_bounds(estim_settings.n, 2); # It supports only multivariate models (for now ...)
 
 
     #=
@@ -192,7 +152,7 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
         # Covariance matrix of the VAR(p) residuals
         V̂[1:n, 1:n] = sym(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂') + (1-α).*sym(Ψ̂*Γ*Ψ̂') + α.*sym((Ψ̂.*sqrt.(Φ̂ᵏ))*Γ*(Ψ̂.*sqrt.(Φ̂ᵏ))');
         V̂[1:n, 1:n] *= 1/T;
-        
+
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];
     end
