@@ -14,11 +14,11 @@ verb_message(verb::Bool, message::String) = verb ? println(message) : nothing;
 """
     check_bounds(X::Number, LB::Number, UB::Number)
 
-Check whether X is larger or equal than LB and lower or equal than UB
+Check whether `X` is larger or equal than `LB` and lower or equal than `UB`
 
     check_bounds(X::Number, LB::Number)
 
-Check whether X is larger or equal than LB
+Check whether `X` is larger or equal than `LB`
 """
 check_bounds(X::Number, LB::Number, UB::Number) = X < LB || X > UB ? throw(DomainError) : nothing
 check_bounds(X::Number, LB::Number) = X < LB ? throw(DomainError) : nothing
