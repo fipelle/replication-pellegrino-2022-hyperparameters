@@ -1,8 +1,27 @@
 #=
 --------------------------------------------------------------------------------------------------------------------------------
-Base
+Base and generic math
 --------------------------------------------------------------------------------------------------------------------------------
 =#
+
+"""
+    verb_message(verb::Bool, message::String)
+
+Println `message` if `verb` is true.
+"""
+verb_message(verb::Bool, message::String) = verb ? println(message) : nothing;
+
+"""
+    check_bounds(X::Number, LB::Number, UB::Number)
+
+Check whether X is larger or equal than LB and lower or equal than UB
+
+    check_bounds(X::Number, LB::Number)
+
+Check whether X is larger or equal than LB
+"""
+check_bounds(X::Number, LB::Number, UB::Number) = X < LB || X > UB ? throw(DomainError) : nothing
+check_bounds(X::Number, LB::Number) = X < LB ? throw(DomainError) : nothing
 
 """
     sum_skipmissing(X::JVector)
@@ -86,6 +105,27 @@ julia> is_vector_in_matrix([1;2], [1 2; 2 3])
 true
 """
 is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix) = sum(sum(vect.==matr, dims=1).==length(vect)) > 0;
+
+"""
+    isconverged(new::Float64, old::Float64, tol::Float64, ε::Float64, increasing::Bool)
+
+Check whether `new` is close enough to `old`.
+
+# Arguments
+- `new`: new objective or loss
+- `old`: old objective or loss
+- `tol`: tolerance
+- `ε`: small Float64
+- `increasing`: true if `new` increases, at each iteration, with respect to `old`
+"""
+isconverged(new::Float64, old::Float64, tol::Float64, ε::Float64, increasing::Bool) = increasing ? (new-old)./(abs(old)+ε) <= tol : -(new-old)./(abs(old)+ε) <= tol;
+
+"""
+    soft_thresholding(z::Float64, ζ::Float64)
+
+Soft thresholding operator.
+"""
+soft_thresholding(z::Float64, ζ::Float64) = sign(z)*max(abs(z)-ζ);
 
 """
     sym(X::Array{Float64,2})
@@ -214,6 +254,23 @@ Base: time series
 =#
 
 """
+    interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
+
+Interpolate each series in `Y`, in turn, by replacing missing observations with the sample average of the non-missing values.
+
+# Arguments
+- `Y`: observed measurements (`nxT`)
+- `n` and `T` are the number of series and observations
+"""
+function interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
+    data = zeros(n, T);
+    for i=1:n
+        data[i, ismissing.(Y[i, :])] .= mean_skipmissing(Y[i, :]);
+    end
+    return data;
+end
+
+"""
     lag(X::Array, p::Int64)
     lag(X::JArray, p::Int64)
 
@@ -246,7 +303,6 @@ function lag(X::JArray, p::Int64)
     # Return output
     return X_t, X_lagged;
 end
-
 
 """
     companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
