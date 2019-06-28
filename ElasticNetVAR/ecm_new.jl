@@ -1,12 +1,4 @@
 """
-"""
-check_bounds(X::Number, LB::Number, UB::Number) = X < LB || X > UB ? throw(DomainError) : nothing
-check_bounds(X::Number, LB::Number) = X < LB ? throw(DomainError) : nothing
-
-
-
-
-"""
     ecm(estim_settings::EstimSettings)
 
 Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2019).
