@@ -1,4 +1,11 @@
 """
+    interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
+
+Interpolate each series in `Y`, in turn, by replacing missing observations with the sample average of the non-missing values.
+
+# Arguments
+- `Y`: observed measurements (`nxT`)
+- `n` and `T` are the number of series and observations
 """
 function interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
     data = zeros(n, T);
@@ -9,18 +16,40 @@ function interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
 end
 
 """
+    verb_message(verb::Bool, message::String)
+
+Println `message` if `verb` is true.
 """
 verb_message(verb::Bool, message::String) = verb ? println(message) : nothing;
 
 """
+    soft_thresholding(z::Float64, ζ::Float64)
+
+Soft thresholding operator.
 """
 soft_thresholding(z::Float64, ζ::Float64) = sign(z)*max(abs(z)-ζ);
 
 """
+    isconverged(new::Float64, old::Float64, tol::Float64, ε::Float64, increasing::Bool)
+
+Check whether `new` is close enough to `old`.
+
+# Arguments
+- `new`: new objective or loss
+- `old`: old objective or loss
+- `tol`: tolerance
+- `ε`: small Float64
+- `increasing`: true if `new` increases, at each iteration, with respect to `old`
 """
 isconverged(new::Float64, old::Float64, tol::Float64, ε::Float64, increasing::Bool) = increasing ? (new-old)./(abs(old)+ε) <= tol : -(new-old)./(abs(old)+ε) <= tol;
 
 """
+    ijth_coordinate_update!(i::Int64, j::Int64, objfun_new::Float64, estim_settings::EstimSettings, Y_i::SubArray{Float64}, Y_lagged::Array{Float64,2}, Ψ̂::Array{Float64,2})
+
+Update the (i,j)-th element of Ψ̂ the coordinate descent algorithm (Friedman et al., 2010) as in Pellegrino (2019).
+
+# References
+Friedman et al. (2010) and Pellegrino (2019)
 """
 function ijth_coordinate_update!(i::Int64, j::Int64, objfun_new::Float64, estim_settings::EstimSettings, Y_i::SubArray{Float64}, Y_lagged::Array{Float64,2}, Ψ̂::Array{Float64,2})
 
