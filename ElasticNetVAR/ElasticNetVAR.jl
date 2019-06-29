@@ -17,6 +17,7 @@ module ElasticNetVAR
 	include("$local_path/kalman.jl");
 	include("$local_path/kalman_new.jl");
 	include("$local_path/ecm.jl");
+	include("$local_path/ecm_new.jl");
 	include("$local_path/jackknife.jl");
 	include("$local_path/validation.jl");
 

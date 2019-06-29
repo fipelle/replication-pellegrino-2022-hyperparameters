@@ -1,9 +1,25 @@
 """
 """
 envar_penalty(estim_settings::EstimSettings, Σ::SymMatrix, Ψ::FloatArray, Φ::FloatArray) = tr(inv(Σ)*(envar_penalty_ridge(estim_settings, Ψ) + envar_penalty_lasso(estim_settings, Ψ, Φ)))::Float64;
-envar_penalty_ridge(estim_settings::EstimSettings, Ψ::FloatArray) = (1-estim_settings.α)/2.*Symmetric(Ψ*estim_settings.Γ*Ψ')::SymMatrix;
-envar_penalty_lasso(estim_settings::EstimSettings, Ψ::FloatArray, Φ::FloatArray) = estim_settings.α/2.*Symmetric((Ψ .* sqrt.(Φ))*estim_settings.Γ*(Ψ .* sqrt.(Φ))')::SymMatrix;
+envar_penalty_ridge(estim_settings::EstimSettings, Ψ::FloatArray) = ((1-estim_settings.α)/2) .* Symmetric(Ψ*estim_settings.Γ*Ψ')::SymMatrix;
+envar_penalty_lasso(estim_settings::EstimSettings, Ψ::FloatArray, Φ::FloatArray) = (estim_settings.α/2) .* Symmetric((Ψ .* sqrt.(Φ))*estim_settings.Γ*(Ψ .* sqrt.(Φ))')::SymMatrix;
 
+"""
+"""
+function update_ecm_stats!(estim_settings::EstimSettings, Xs::FloatVector, Xs_old::FloatVector, Ps::SymMatrix, Ps_old::SymMatrix, E::FloatArray, F::FloatArray, G::FloatArray)
+
+    # Views
+    Xs_view = @view Xs[1:estim_settings.n];
+    Ps_view = @view Ps[1:estim_settings.n,1:estim_settings.n];
+    Xs_old_view = @view Xs_old[1:estim_settings.np];
+    Ps_old_view = @view Ps_old[1:estim_settings.np,1:estim_settings.np];
+    PPs_view = @view Ps[1:estim_settings.n,estim_settings.n+1:end];
+
+    # Update ECM statistics
+    E .+= Xs_view*Xs_view' + Ps_view;
+    F .+= Xs_view*Xs_old_view' + PPs_view;
+    G .+= Xs_old_view*Xs_old_view' + Ps_old_view;
+end
 
 """
 """
@@ -31,9 +47,7 @@ function ksmoother_ecm(estim_settings::EstimSettings, kalman_settings::KalmanSet
         Ps_old = backwards_pass(Pf_lagged, J1, Ps, Pp);
 
         # Update ECM statistics
-        E += Xs[1:n]*Xs[1:n]' + Ps[1:n,1:n];
-        F += Xs[1:n]*Xs_old[1:np]' + Ps[1:n,n+1:end];
-        G += Xs_old[1:np]*Xs_old[1:np]' + Ps_old[1:np,1:np];
+        update_ecm_stats!(estim_settings, Xs, Xs_old, Ps, Ps_old, E, F, G);
 
         # Update Xs and Ps
         Xs = copy(Xs_old);
@@ -45,17 +59,19 @@ function ksmoother_ecm(estim_settings::EstimSettings, kalman_settings::KalmanSet
     Pp = status.history_P_prior[1];
 
     # Compute smoothed estimates for t==0
-    J1 = compute_J1(settings.P0, Pp, settings);
-    X0 = backwards_pass(settings.X0, J1, Xs, Xp);
-    P0 = backwards_pass(settings.P0, J1, Ps, Pp);
+    J1 = compute_J1(kalman_settings.P0, Pp, kalman_settings);
+    X0 = backwards_pass(kalman_settings.X0, J1, Xs, Xp);
+    P0 = backwards_pass(kalman_settings.P0, J1, Ps, Pp);
 
     # Update ECM statistics
-    E += Xs[1:n]*Xs[1:n]' + Ps[1:n,1:n];
-    F += Xs[1:n]*X0[1:np]' + Ps[1:n,n+1:end];
-    G += X0[1:np]*X0[1:np]' + P0[1:np,1:np];
+    update_ecm_stats!(estim_settings, Xs, X0, Ps, P0, E, F, G);
+
+    # Use Symmetric for E and G
+    E_sym = Symmetric(E)::SymMatrix;
+    G_sym = Symmetric(G)::SymMatrix;
 
     # Return ECM statistics
-    return E, F, G;
+    return E_sym, F, G_sym;
 end
 
 """
@@ -112,7 +128,7 @@ function ecm(estim_settings::EstimSettings)
 
         # Run Kalman filter and smoother
         status = KalmanStatus();
-        for t=1:settings.T
+        for t=1:kalman_settings.T
             kfilter!(kalman_settings, status);
         end
 
