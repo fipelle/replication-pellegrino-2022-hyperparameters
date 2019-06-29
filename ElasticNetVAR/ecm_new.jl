@@ -1,8 +1,8 @@
 """
 """
-envar_penalty(estim_settings::EstimSettings, Σ::SymMatrix, Ψ::FloatArray, Φ::FloatArray) = tr(inv(Σ)*(envar_penalty_ridge(estim_settings, Ψ) + envar_penalty_lasso(estim_settings, Ψ, Φ)))::Float64;
-envar_penalty_ridge(estim_settings::EstimSettings, Ψ::FloatArray) = ((1-estim_settings.α)/2) .* Symmetric(Ψ*estim_settings.Γ*Ψ')::SymMatrix;
-envar_penalty_lasso(estim_settings::EstimSettings, Ψ::FloatArray, Φ::FloatArray) = (estim_settings.α/2) .* Symmetric((Ψ .* sqrt.(Φ))*estim_settings.Γ*(Ψ .* sqrt.(Φ))')::SymMatrix;
+envar_penalty(estim_settings::EstimSettings, Σ::SymMatrix, Ψ::SubArray{Float64}, Φ::FloatArray) = tr(inv(Σ)*(envar_penalty_ridge(estim_settings, Ψ) + envar_penalty_lasso(estim_settings, Ψ, Φ)))::Float64;
+envar_penalty_ridge(estim_settings::EstimSettings, Ψ::SubArray{Float64}) = ((1-estim_settings.α)/2) .* Symmetric(Ψ*estim_settings.Γ*Ψ')::SymMatrix;
+envar_penalty_lasso(estim_settings::EstimSettings, Ψ::SubArray{Float64}, Φ::FloatArray) = (estim_settings.α/2) .* Symmetric((Ψ .* sqrt.(Φ))*estim_settings.Γ*(Ψ .* sqrt.(Φ))')::SymMatrix;
 
 """
 """
@@ -106,40 +106,37 @@ function ecm(estim_settings::EstimSettings)
     =#
 
     # State-space parameters
-    B = [Matrix{Float64}(I, n, n) zeros(n, np)];
-    R = Symmetric(Matrix{Float64}(I, n, n).*ε)::SymMatrix;
+    B = [Matrix{Float64}(I, estim_settings.n, estim_settings.n) zeros(estim_settings.n, estim_settings.np)];
+    R = Symmetric(Matrix{Float64}(I, estim_settings.n, estim_settings.n).*estim_settings.ε)::SymMatrix;
     C, V = ext_companion_form(Ψ_init, Σ_init);
-    V = Symmetric(V)::SymMatrix; # Implement in *_companion_form (TBC)
-
-    # kalman_settings
-    kalman_settings = KalmanSettings(estim_settings.Y, B, R, C, V);
 
     # Initialise additional variables
-    Ψ = C[1:n, 1:np];
-    Σ = V[1:n, 1:n];
-    Φ = 1 ./ (abs.(Ψ).+ε);
+    Ψ = @view C[1:estim_settings.n, 1:estim_settings.np];
+    Φ = 1 ./ (abs.(Ψ) .+ estim_settings.ε);
 
     # ECM controls
     pen_loglik_old = -Inf;
     pen_loglik_new = -Inf;
 
     # Run ECM
-    for iter=1:max_iter
+    for iter=1:estim_settings.max_iter
 
         # Run Kalman filter and smoother
+        kalman_settings = KalmanSettings(estim_settings.Y, B, R, C, V);
         status = KalmanStatus();
         for t=1:kalman_settings.T
             kfilter!(kalman_settings, status);
         end
 
-        if iter > prerun
+        if iter > estim_settings.prerun
 
             # New penalised loglikelihood
-            pen_loglik_new = loglik - envar_penalty(estim_settings, Σ, Ψ, Φ);
-            verb_message(estim_settings.verb, "ecm > iter=$(iter-prerun), penalised loglik=$(round(pen_loglik_new, digits=5))");
+            Σ = Symmetric(V.data[1:estim_settings.n, 1:estim_settings.n])::SymMatrix;
+            pen_loglik_new = status.loglik - envar_penalty(estim_settings, Σ, Ψ, Φ);
+            verb_message(estim_settings.verb, "ecm > iter=$(iter-estim_settings.prerun), penalised loglik=$(round(pen_loglik_new, digits=5))");
 
             # Stop when the ECM algorithm converges
-            if iter > prerun+1
+            if iter > estim_settings.prerun+1
                 if isconverged(pen_loglik_new, pen_loglik_old, estim_settings.tol, estim_settings.ε, true)
                     verb_message(estim_settings.verb, "ecm > converged!\n");
                     break;
@@ -150,27 +147,25 @@ function ecm(estim_settings::EstimSettings)
             pen_loglik_old = copy(pen_loglik_new);
 
         else
-            verb_message(estim_settings.verb, "ecm > prerun $iter (out of $prerun)");
+            verb_message(estim_settings.verb, "ecm > prerun $iter (out of $(estim_settings.prerun))");
         end
 
         E, F, G = ksmoother_ecm(estim_settings, kalman_settings, status);
 
         # VAR(p) coefficients
-        Φ = 1 ./ (abs.(Ψ).+ε);
-        for i=1:n
-            C[i, 1:np] = sym_inv(G + Γ.*((1-α)*I + α.*Diagonal(Φ[i, :])))*F[i,:];
+        Φ = 1 ./ (abs.(Ψ) .+ estim_settings.ε);
+        for i=1:estim_settings.n
+            XX_i = @views Symmetric(G + estim_settings.Γ.*((1-estim_settings.α)*I + estim_settings.α.*Diagonal(Φ[i, :])))::SymMatrix;
+            C[i, 1:estim_settings.np] = @views inv(XX_i)*F[i,:];
         end
 
-        # Update Ψ
-        Ψ = C[1:n, 1:np];
-
         # Covariance matrix of the VAR(p) residuals
-        V[1:n, 1:n] = sym(E-F*Ψ'-Ψ*F'+Ψ*G*Ψ') + (1-α).*sym(Ψ*Γ*Ψ') + α.*sym((Ψ.*sqrt.(Φ))*Γ*(Ψ.*sqrt.(Φ))');
-        V[1:n, 1:n] *= 1/T;
-
-        # Update Σ
-        Σ = V[1:n, 1:n];
+        V.data[1:estim_settings.n, 1:estim_settings.n] = (1/estim_settings.T) .* Symmetric(E-F*Ψ'-Ψ*F'+Ψ*G*Ψ' +
+                                                                                          (1-estim_settings.α).*(Ψ*estim_settings.Γ*Ψ') +
+                                                                                          estim_settings.α.*((Ψ.*sqrt.(Φ))*estim_settings.Γ*(Ψ.*sqrt.(Φ))'))::SymMatrix;
     end
 
-    return nothing; # TBC return something
+    # Return output
+    kalman_settings = KalmanSettings(estim_settings.Y, B, R, C, V);
+    return kalman_settings;
 end
