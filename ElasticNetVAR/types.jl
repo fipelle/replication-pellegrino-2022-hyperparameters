@@ -147,4 +147,4 @@ end
 
 # EstimSettings constructor
 EstimSettings(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true) =
-    EstimSettings(Y, size(Y,1), size(Y,2), p, size(Y,1)*p, λ, α, β, build_Γ(n, p, λ, β), ε, tol, max_iter, prerun, verb);
+    EstimSettings(Y, size(Y,1), size(Y,2), p, size(Y,1)*p, λ, α, β, build_Γ(size(Y,1), p, λ, β), ε, tol, max_iter, prerun, verb);

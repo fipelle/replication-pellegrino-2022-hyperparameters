@@ -143,7 +143,7 @@ function sym_inv(X::Array{Float64,2})
     eig_dec = LinearAlgebra.eigen(sym(X));
     inv_matr = sym(eig_dec.vectors*Diagonal(eig_dec.values.^-1)*eig_dec.vectors');
     return inv_matr;
-end
+end # TBD: remove the *sym* functions
 
 
 #=
@@ -343,8 +343,22 @@ function ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
     # Return output
     return C, V;
-end
+end # TBD remove the function above and change the non ext case to handle SymMatrices
 
+function ext_companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
+
+    # Dimensions
+    n = size(Σ,2);
+    p = Int64(size(Ψ,2)/n);
+    np = n*p;
+
+    # Companion form VAR(p)
+    C = [Ψ zeros(n, n); Matrix(I, np, np) zeros(np, n)];
+    V = Symmetric([Σ zeros(n, np); zeros(np, np+n)])::SymMatrix;
+
+    # Return output
+    return C, V;
+end
 
 #=
 -------------------------------------------------------------------------------------------------------------------------------
