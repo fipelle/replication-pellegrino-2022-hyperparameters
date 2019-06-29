@@ -125,7 +125,7 @@ isconverged(new::Float64, old::Float64, tol::Float64, ε::Float64, increasing::B
 
 Soft thresholding operator.
 """
-soft_thresholding(z::Float64, ζ::Float64) = sign(z)*max(abs(z)-ζ);
+soft_thresholding(z::Float64, ζ::Float64) = sign(z)*max(abs(z)-ζ, 0);
 
 """
     sym(X::Array{Float64,2})
@@ -263,10 +263,11 @@ Interpolate each series in `Y`, in turn, by replacing missing observations with 
 - `n` and `T` are the number of series and observations
 """
 function interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
-    data = zeros(n, T);
+    data = copy(Y);
     for i=1:n
         data[i, ismissing.(Y[i, :])] .= mean_skipmissing(Y[i, :]);
     end
+    data = data |> Array{Float64};
     return data;
 end
 
@@ -325,7 +326,7 @@ function companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 end
 
 """
-    companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+    ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
 Construct the companion form parameters of a VAR(p) with coefficients Ψ and var-cov matrix of the residuals Σ. The companion form is extend with additional n entries.
 """
