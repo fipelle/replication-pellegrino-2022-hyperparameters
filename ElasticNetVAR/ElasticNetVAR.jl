@@ -13,6 +13,7 @@ module ElasticNetVAR
 	include("$local_path/types.jl");
     include("$local_path/methods.jl");
 	include("$local_path/coordinate_descent.jl");
+	include("$local_path/coordinate_descent_new.jl");
 	include("$local_path/kalman.jl");
 	include("$local_path/kalman_new.jl");
 	include("$local_path/ecm.jl");
@@ -25,6 +26,7 @@ module ElasticNetVAR
 	export kalman;
 	export kfilter!, kforecast, ksmoother;
 	export coordinate_descent, ecm;
+	export coordinate_descent_new, build_Γ;
 	export block_jackknife, artificial_jackknife;
 	export select_hyperparameters, fc_err, jackknife_err;
 end
