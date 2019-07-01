@@ -88,8 +88,6 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     end
     Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, p, λ, α, β, tol=tol, max_iter=max_iter, verb=false);
 
-    save("./init_old.jld", Dict("Ψ_init" => Ψ̂_init, "Σ_init" => Σ̂_init));
-
     #=
     -----------------------------------------------------------------------------------------------------------------------------------------------------
     Memory pre-allocation
@@ -196,15 +194,6 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
 
         # Update Σ̂
         Σ̂ = V̂[1:n, 1:n];
-
-        #=
-        save("./first_round_old.jld", Dict("Φ" => Φ̂ᵏ, "C" => Ĉ, "V" => V̂, "E" => Ê, "F" => F̂, "G" => Ĝ));
-
-        if iter == 2
-            save("./second_round_old.jld", Dict("Φ" => Φ̂ᵏ, "C" => Ĉ, "V" => V̂, "E" => Ê, "F" => F̂, "G" => Ĝ));
-            error("");
-        end
-        =#
     end
 
     # The output excludes the additional n terms required to estimate the lag-one covariance smoother as described above.
