@@ -66,6 +66,17 @@ function ImmutableKalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix
     return ImmutableKalmanSettings(Y, B, R, C, V, X0, P0, n, T, m, compute_loglik, store_history);
 end
 
+# ImmutableKalmanSettings constructor
+function ImmutableKalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix, C::FloatArray, V::SymMatrix, X0::FloatVector, P0::SymMatrix; compute_loglik::Bool=true, store_history::Bool=true)
+
+    # Compute default value for missing parameters
+    n, T = size(Y);
+    m = size(B,2);
+
+    # Return ImmutableKalmanSettings
+    return ImmutableKalmanSettings(Y, B, R, C, V, X0, P0, n, T, m, compute_loglik, store_history);
+end
+
 """
     MutableKalmanSettings(...)
 
@@ -73,7 +84,7 @@ Define a mutable structure identical in shape to ImmutableKalmanSettings.
 
 See the docstring of ImmutableKalmanSettings for more information.
 """
-struct MutableKalmanSettings <: KalmanSettings
+mutable struct MutableKalmanSettings <: KalmanSettings
     Y::JArray{Float64}
     B::FloatArray
     R::SymMatrix
@@ -96,6 +107,17 @@ function MutableKalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix, 
     m = size(B,2);
     X0 = zeros(m);
     P0 = Symmetric(reshape((I-kron(C, C))\V[:], m, m));
+
+    # Return MutableKalmanSettings
+    return MutableKalmanSettings(Y, B, R, C, V, X0, P0, n, T, m, compute_loglik, store_history);
+end
+
+# MutableKalmanSettings constructor
+function MutableKalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix, C::FloatArray, V::SymMatrix, X0::FloatVector, P0::SymMatrix; compute_loglik::Bool=true, store_history::Bool=true)
+
+    # Compute default value for missing parameters
+    n, T = size(Y);
+    m = size(B,2);
 
     # Return MutableKalmanSettings
     return MutableKalmanSettings(Y, B, R, C, V, X0, P0, n, T, m, compute_loglik, store_history);
