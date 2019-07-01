@@ -295,6 +295,78 @@ function ksmoother(settings::KalmanSettings, status::KalmanStatus)
 end
 
 """
+    ksmoother_ecm(estim_settings::EstimSettings, kalman_settings::KalmanSettings, status::KalmanStatus)
+
+Kalman smoother: RTS smoother from the last evaluated time period in status to t==0.
+
+This instance of the smoother returns the ECM statistics and new initial conditions.
+
+# Model
+The state space model used below is,
+
+``Y_{t} = B*X_{t} + e_{t}``
+
+``X_{t} = C*X_{t-1} + u_{t}``
+
+Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
+
+# Arguments
+- `estim_settings`: EstimSettings struct
+- `kalman_settings`: KalmanSettings struct
+- `status`: KalmanStatus struct
+"""
+function ksmoother_ecm(estim_settings::EstimSettings, kalman_settings::KalmanSettings, status::KalmanStatus)
+
+    # Memory pre-allocation
+    E = zeros(estim_settings.n, estim_settings.n);
+    F = zeros(estim_settings.n, estim_settings.np);
+    G = zeros(estim_settings.np, estim_settings.np);
+    Xs = status.X_post;
+    Ps = status.P_post;
+
+    # Loop over t
+    for t=status.t:-1:2
+
+        # Pointers
+        Xp = status.history_X_prior[t];
+        Pp = status.history_P_prior[t];
+        Xf_lagged = status.history_X_post[t-1];
+        Pf_lagged = status.history_P_post[t-1];
+
+        # Smoothed estimates for t-1
+        J1 = compute_J1(Pf_lagged, Pp, kalman_settings);
+        Xs_old = backwards_pass(Xf_lagged, J1, Xs, Xp);
+        Ps_old = backwards_pass(Pf_lagged, J1, Ps, Pp);
+
+        # Update ECM statistics
+        update_ecm_stats!(estim_settings, Xs, Xs_old, Ps, Ps_old, E, F, G);
+
+        # Update Xs and Ps
+        Xs = copy(Xs_old);
+        Ps = copy(Ps_old);
+    end
+
+    # Pointers
+    Xp = status.history_X_prior[1];
+    Pp = status.history_P_prior[1];
+
+    # Compute smoothed estimates for t==0
+    J1 = compute_J1(kalman_settings.P0, Pp, kalman_settings);
+    X0 = backwards_pass(kalman_settings.X0, J1, Xs, Xp);
+    P0 = backwards_pass(kalman_settings.P0, J1, Ps, Pp);
+
+    # Update ECM statistics
+    update_ecm_stats!(estim_settings, Xs, X0, Ps, P0, E, F, G);
+
+    # Use Symmetric for E and G
+    E_sym = Symmetric(E)::SymMatrix;
+    G_sym = Symmetric(G)::SymMatrix;
+
+    # Return ECM statistics
+    return E_sym, F, G_sym, X0, P0;
+end
+
+"""
     compute_J1(Pf_lagged::SymMatrix, Pp::SymMatrix, settings::KalmanSettings)
 
 Compute J_{t-1} as in Shumway and Stoffer (2011, chapter 6) to operate the RTS smoother.
@@ -324,3 +396,23 @@ Backwards pass for P to get the smoothed conditional covariance at time t-1.
 """
 backwards_pass(Xf_lagged::FloatVector, J1::FloatArray, Xs::FloatVector, Xp::FloatVector) = Xf_lagged + J1*(Xs-Xp);
 backwards_pass(Pf_lagged::SymMatrix, J1::FloatArray, Ps::SymMatrix, Pp::SymMatrix) = Symmetric(Pf_lagged + J1*(Ps-Pp)*J1')::SymMatrix;
+
+"""
+    update_ecm_stats!(estim_settings::EstimSettings, Xs::FloatVector, Xs_old::FloatVector, Ps::SymMatrix, Ps_old::SymMatrix, E::FloatArray, F::FloatArray, G::FloatArray)
+
+Update the ECM statistics.
+"""
+function update_ecm_stats!(estim_settings::EstimSettings, Xs::FloatVector, Xs_old::FloatVector, Ps::SymMatrix, Ps_old::SymMatrix, E::FloatArray, F::FloatArray, G::FloatArray)
+
+    # Views
+    Xs_view = @view Xs[1:estim_settings.n];
+    Ps_view = @view Ps[1:estim_settings.n,1:estim_settings.n];
+    Xs_old_view = @view Xs_old[1:estim_settings.np];
+    Ps_old_view = @view Ps_old[1:estim_settings.np,1:estim_settings.np];
+    PPs_view = @view Ps[1:estim_settings.n,estim_settings.n+1:end];
+
+    # Update ECM statistics
+    E .+= Xs_view*Xs_view' + Ps_view;
+    F .+= Xs_view*Xs_old_view' + PPs_view;
+    G .+= Xs_old_view*Xs_old_view' + Ps_old_view;
+end
