@@ -100,6 +100,8 @@ function ecm(estim_settings::EstimSettings)
     verb_message(estim_settings.verb, "ecm > initialisation");
     Ψ_init, Σ_init = coordinate_descent(estim_settings);
 
+    save("./init_new.jld", Dict("Ψ_init" => Ψ_init, "Σ_init" => Σ_init));
+
     #=
     The state vector includes additional n terms with respect to the standard VAR companion form representation.
     This is to estimate the lag-one covariance smoother as in Watson and Engle (1983).
@@ -109,6 +111,7 @@ function ecm(estim_settings::EstimSettings)
     B = [Matrix{Float64}(I, estim_settings.n, estim_settings.n) zeros(estim_settings.n, estim_settings.np)];
     R = Symmetric(Matrix{Float64}(I, estim_settings.n, estim_settings.n).*estim_settings.ε)::SymMatrix;
     C, V = ext_companion_form(Ψ_init, Σ_init);
+    kalman_settings = MutableKalmanSettings(estim_settings.Y, B, R, C, V);
 
     # Initialise additional variables
     Ψ = @view C[1:estim_settings.n, 1:estim_settings.np];
@@ -122,7 +125,6 @@ function ecm(estim_settings::EstimSettings)
     for iter=1:estim_settings.max_iter
 
         # Run Kalman filter and smoother
-        kalman_settings = KalmanSettings(estim_settings.Y, B, R, C, V);
         status = KalmanStatus();
         for t=1:kalman_settings.T
             kfilter!(kalman_settings, status);
@@ -131,7 +133,7 @@ function ecm(estim_settings::EstimSettings)
         if iter > estim_settings.prerun
 
             # New penalised loglikelihood
-            Σ = Symmetric(V.data[1:estim_settings.n, 1:estim_settings.n])::SymMatrix;
+            Σ = Symmetric(kalman_settings.V.data[1:estim_settings.n, 1:estim_settings.n])::SymMatrix;
             pen_loglik_new = status.loglik - envar_penalty(estim_settings, Σ, Ψ, Φ);
             verb_message(estim_settings.verb, "ecm > iter=$(iter-estim_settings.prerun), penalised loglik=$(round(pen_loglik_new, digits=5))");
 
@@ -156,16 +158,26 @@ function ecm(estim_settings::EstimSettings)
         Φ = 1 ./ (abs.(Ψ) .+ estim_settings.ε);
         for i=1:estim_settings.n
             XX_i = @views Symmetric(G + estim_settings.Γ.*((1-estim_settings.α)*I + estim_settings.α.*Diagonal(Φ[i, :])))::SymMatrix;
-            C[i, 1:estim_settings.np] = @views inv(XX_i)*F[i,:];
+            kalman_settings.C[i, 1:estim_settings.np] = @views inv(XX_i)*F[i,:];
         end
 
         # Covariance matrix of the VAR(p) residuals
-        V.data[1:estim_settings.n, 1:estim_settings.n] = (1/estim_settings.T) .* Symmetric(E-F*Ψ'-Ψ*F'+Ψ*G*Ψ' +
-                                                                                          (1-estim_settings.α).*(Ψ*estim_settings.Γ*Ψ') +
-                                                                                          estim_settings.α.*((Ψ.*sqrt.(Φ))*estim_settings.Γ*(Ψ.*sqrt.(Φ))'))::SymMatrix;
+        kalman_settings.V.data[1:estim_settings.n, 1:estim_settings.n] =
+            Symmetric(E-F*Ψ'-Ψ*F'+Ψ*G*Ψ' + (1-estim_settings.α).*(Ψ*estim_settings.Γ*Ψ') + estim_settings.α.*((Ψ.*sqrt.(Φ))*estim_settings.Γ*(Ψ.*sqrt.(Φ))'))::SymMatrix;
+
+        kalman_settings.V.data[1:estim_settings.n, 1:estim_settings.n] *= 1/estim_settings.T;
+
+        #=
+        save("./first_round_new.jld", Dict("Φ" => Φ, "C" => C, "V" => V.data, "E" => E, "F" => F, "G" => G));
+
+        if iter == 2
+            save("./second_round_new.jld", Dict("Φ" => Φ, "C" => C, "V" => V.data, "E" => E, "F" => F, "G" => G));
+            error("");
+        end
+        =#
     end
 
     # Return output
-    kalman_settings = KalmanSettings(estim_settings.Y, B, R, C, V);
-    return kalman_settings;
+    out_kalman_settings = ImmutableKalmanSettings(estim_settings.Y, B, R, C, V);
+    return out_kalman_settings;
 end

@@ -7,8 +7,11 @@ const JVector{T}   = Array{Union{Missing, T}, 1};
 const JArray{T, N} = Array{Union{Missing, T}, N};
 
 # Kalman structures
+
+abstract type KalmanSettings end
+
 """
-    KalmanSettings(...)
+    ImmutableKalmanSettings(...)
 
 Define an immutable structure that includes all the Kalman filter and smoother input.
 
@@ -35,7 +38,7 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 - `compute_loglik`: Boolean (true for computing the loglikelihood in the Kalman filter)
 - `store_history`: Boolean (true to store the history of the filter and smoother)
 """
-struct KalmanSettings
+struct ImmutableKalmanSettings <: KalmanSettings
     Y::JArray{Float64}
     B::FloatArray
     R::SymMatrix
@@ -50,8 +53,8 @@ struct KalmanSettings
     store_history::Bool
 end
 
-# KalmanSettings constructor
-function KalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix, C::FloatArray, V::SymMatrix; compute_loglik::Bool=true, store_history::Bool=true)
+# ImmutableKalmanSettings constructor
+function ImmutableKalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix, C::FloatArray, V::SymMatrix; compute_loglik::Bool=true, store_history::Bool=true)
 
     # Compute default value for missing parameters
     n, T = size(Y);
@@ -59,8 +62,43 @@ function KalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix, C::Floa
     X0 = zeros(m);
     P0 = Symmetric(reshape((I-kron(C, C))\V[:], m, m));
 
-    # Return KalmanSettings
-    return KalmanSettings(Y, B, R, C, V, X0, P0, n, T, m, compute_loglik, store_history);
+    # Return ImmutableKalmanSettings
+    return ImmutableKalmanSettings(Y, B, R, C, V, X0, P0, n, T, m, compute_loglik, store_history);
+end
+
+"""
+    MutableKalmanSettings(...)
+
+Define a mutable structure identical in shape to ImmutableKalmanSettings.
+
+See the docstring of ImmutableKalmanSettings for more information.
+"""
+struct MutableKalmanSettings <: KalmanSettings
+    Y::JArray{Float64}
+    B::FloatArray
+    R::SymMatrix
+    C::FloatArray
+    V::SymMatrix
+    X0::FloatVector
+    P0::SymMatrix
+    n::Int64
+    T::Int64
+    m::Int64
+    compute_loglik::Bool
+    store_history::Bool
+end
+
+# MutableKalmanSettings constructor
+function MutableKalmanSettings(Y::JArray{Float64}, B::FloatArray, R::SymMatrix, C::FloatArray, V::SymMatrix; compute_loglik::Bool=true, store_history::Bool=true)
+
+    # Compute default value for missing parameters
+    n, T = size(Y);
+    m = size(B,2);
+    X0 = zeros(m);
+    P0 = Symmetric(reshape((I-kron(C, C))\V[:], m, m));
+
+    # Return MutableKalmanSettings
+    return MutableKalmanSettings(Y, B, R, C, V, X0, P0, n, T, m, compute_loglik, store_history);
 end
 
 """
