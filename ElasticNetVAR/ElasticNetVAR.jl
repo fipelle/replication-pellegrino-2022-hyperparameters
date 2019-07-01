@@ -7,7 +7,6 @@ module ElasticNetVAR
 	using Statistics;
 	using Distributions;
 	using Distributed;
-	using FileIO;
 
 	# Custom dependencies
 	const local_path = dirname(@__FILE__);
