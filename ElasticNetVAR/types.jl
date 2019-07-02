@@ -13,7 +13,7 @@ abstract type KalmanSettings end
 """
     ImmutableKalmanSettings(...)
 
-Define an immutable structure that includes all the Kalman filter and smoother input.
+Define an immutable structure that includes all the Kalman filter and smoother inputs.
 
 # Model
 The state space model used below is,
@@ -156,6 +156,8 @@ end
 # KalmanStatus constructors
 KalmanStatus() = KalmanStatus(0, [nothing for i=1:9]...);
 
+# Estimation structures
+
 """
     EstimSettings(...)
 
@@ -165,7 +167,7 @@ Define an immutable structure used to initialise the estimation routine.
 - `Y`: observed measurements (`nxT`)
 - `n`: Number of series
 - `T`: Number of observations
-- `T`: Number of lags
+- `p`: Number of lags
 - `np`: n*p
 - `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
 - `α`: weight associated to the LASSO component of the elastic-net penalty
@@ -208,3 +210,70 @@ end
 # EstimSettings constructor
 EstimSettings(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true) =
     EstimSettings(Y, size(Y,1), size(Y,2), p, size(Y,1)*p, λ, α, β, build_Γ(size(Y,1), p, λ, β), ε, tol, max_iter, prerun, verb);
+
+# Validation types
+
+"""
+    ValidationSettings(...)
+
+Define an immutable structure used to define the validation settings.
+
+The arguments are two dimensional arrays representing the bounds of the grid for each hyperparameter.
+
+# Arguments
+- `err_type`:
+    - 1 In-sample error
+    - 2 Out-of-sample error
+    - 3 Block jackknife error
+    - 4 Artificial jackknife error
+- `verb`: Verbose output (default: true)
+- `t0`: weight associated to the LASSO component of the elastic-net penalty
+- `subsample`: Number of observations removed in the subsampling process, as a percentage of the original sample size. It is bounded between 0 and 1.
+- `max_samples`: if `C(T*n,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples. (used only for the artificial jackknife)
+- `log_folder_path`: folder to store the log file
+"""
+struct ValidationSettings
+    err_type::Int64
+    verb::Bool
+    t0::Union{Int64, Nothing}
+    subsample::Union{Float64, Nothing}
+    max_samples::Union{Int64, Nothing}
+    log_folder_path::Union{String, Nothing}
+end
+
+# Constructor for ValidationSettings
+function ValidationSettings(err_type::Int64; verb::Bool=true, log_folder_path::Union{String, Nothing}=nothing)
+
+    # Error management
+    if err_type != 1
+        error("Must specify t0!");
+    end
+
+    if err_type == 4
+        error("Must specify max_samples!");
+    end
+
+    return ValidationSettings(err_type, verb, nothing, nothing, nothing, log_folder_path);
+end
+
+"""
+    HyperGrid(...)
+
+Define an immutable structure used to define the grid of hyperparameters used in validation(...).
+
+The arguments are two dimensional arrays representing the bounds of the grid for each hyperparameter.
+
+# Arguments
+- `p`: Number of lags
+- `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
+- `α`: weight associated to the LASSO component of the elastic-net penalty
+- `β`: additional shrinkage for distant lags (p>1)
+- `draws`: number of draws used to construct the grid of candidates
+"""
+struct HyperGrid
+    p::Array{Int64,1}
+    λ::Array{<:Number,1}
+    α::Array{<:Number,1}
+    β::Array{<:Number,1}
+    draws::Int64
+end

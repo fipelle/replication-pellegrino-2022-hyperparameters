@@ -1,67 +1,49 @@
 """
-    select_hyperparameters(Y::JArray{Float64,2}, p_grid_0::Array{Int64,1}, λ_grid_0::Array{<:Number,1}, α_grid_0::Array{<:Number,1}, β_grid_0::Array{<:Number,1}, err_type::Int64; rs::Bool=true, rs_draws::Int64=500, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, log_folder::String="~", demean_Y::Bool=true)
+    select_hyperparameters(estim_settings::EstimSettings, validation_settings::ValidationSettings, γ_grid::HyperGrid)
 
 Select the tuning hyper-parameters for the elastic-net vector autoregression.
 
 # Arguments
-- `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
-- `p_grid_0`: grid of candidates for the number of lags in the vector autoregression (grid bounds only for the random search algorithm)
-- `λ_grid_0`: grid of candidates for the overall shrinkage hyper-parameter for the elastic-net penalty (grid bounds only for the random search algorithm)
-- `α_grid_0`: grid of candidates for the weight associated to the LASSO component of the elastic-net penalty (grid bounds only for the random search algorithm)
-- `β_grid_0`: grid of candidates for the additional shrinkage for distant lags (grid bounds only for the random search algorithm)
-- `err_type`: (1) in-sample, (2) out-of-sample, (3) artificial jackknife, (4) block jackknife
-- `rs::Bool`: True for random search (default: true)
-- `rs_draws`: Number of draws used to construct the random search grid (default: 500)
-- `subsample`: Number of observations removed in the subsampling process, as a percentage of the original sample size. It is bounded between 0 and 1. (default: 0.20)
-- `max_samples`: if `C(T*n,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples. (default: 500 - used only when ajk==true)
-- `t0`: End of the estimation sample (default: 1)
-- `tol`: tolerance used to check convergence (default: 1e-3)
-- `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
-- `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
-- `verb`: Verbose output (default: true)
-- `log_folder`: folder to store the log file (default: "~")
-- `demean_Y`: demean data (default: true)
+- `estim_settings`: EstimSettings struct
+- `validation_settings`: ValidationSettings struct
+- `γ_grid`: HyperGrid struct
 
 # References
 Pellegrino (2019)
 """
-function select_hyperparameters(Y::JArray{Float64,2}, p_grid_0::Array{Int64,1}, λ_grid_0::Array{<:Number,1}, α_grid_0::Array{<:Number,1}, β_grid_0::Array{<:Number,1}, err_type::Int64; rs::Bool=true, rs_draws::Int64=500, subsample::Float64=0.20, max_samples::Int64=500, t0::Int64=1, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true, log_folder::String="~", demean_Y::Bool=true)
+function select_hyperparameters(estim_settings::EstimSettings, validation_settings::ValidationSettings, γ_grid::HyperGrid)
+
+    # Check inputs
+    check_bounds(estim_settings.p, 1);
+    check_bounds(estim_settings.λ, 0);
+    check_bounds(estim_settings.α, 0, 1);
+    check_bounds(estim_settings.β, 1);
+    check_bounds(estim_settings.max_iter, 3);
+    check_bounds(estim_settings.max_iter, estim_settings.prerun);
+    check_bounds(estim_settings.n, 2); # It supports only multivariate models (for now ...)
+
+    if length(γ_grid.p) != 2 || length(γ_grid.λ) != 2 || length(γ_grid.α) != 2 || length(γ_grid.β) != 2
+        error("The grids include more than two entries. Random search algorithm: they must include only the bounds for the grids!")
+    end
+
+    check_bounds(γ_grid.p[2], γ_grid.p[1]);
+    check_bounds(γ_grid.λ[2], γ_grid.λ[1]);
+    check_bounds(γ_grid.α[2], γ_grid.α[1]);
+    check_bounds(γ_grid.β[2], γ_grid.β[1]);
+
+    #=
+    DA QUI IN GIU'
+    =#
 
     # Construct grid of hyperparameters - random search algorithm
-    if rs == true
+    error_grid = zeros(rs_draws);
+    γ_grid = Array{Array{Float64,1}}(UndefInitializer(), rs_draws);
 
-        # Error management
-        if length(p_grid_0) != 2 || length(λ_grid_0) != 2 || length(α_grid_0) != 2 || length(β_grid_0) != 2
-            error("The grids include more than two entries. Random search algorithm: they must include only the bounds for the grids!")
-        end
-
-        # Grids
-        error_grid = zeros(rs_draws);
-        γ_grid = Array{Array{Float64,1}}(UndefInitializer(), rs_draws);
-
-        for draw=1:rs_draws
-            γ_grid[draw] = vcat(rand(p_grid_0[1]:p_grid_0[2]),
-                                rand(Uniform(λ_grid_0[1], λ_grid_0[2])),
-                                rand(Uniform(α_grid_0[1], α_grid_0[2])),
-                                rand(Uniform(β_grid_0[1], β_grid_0[2])));
-        end
-
-    # Use pre-defined grid of hyperparameters - grid search algorithm
-    else
-        error_grid = zeros(length(p_grid_0)*length(λ_grid_0)*length(α_grid_0)*length(β_grid_0));
-        γ_grid = Array{Array{Float64,1}}(UndefInitializer(), length(error_grid));
-
-        iter = 1;
-        for p=p_grid
-            for λ=λ_grid
-                for α=α_grid
-                    for β=β_grid
-                        γ_grid[iter] = vcat(p, λ, α, β);
-                        iter += 1;
-                    end
-                end
-            end
-        end
+    for draw=1:rs_draws
+        γ_grid[draw] = vcat(rand(p_grid_0[1]:p_grid_0[2]),
+                            rand(Uniform(λ_grid_0[1], λ_grid_0[2])),
+                            rand(Uniform(α_grid_0[1], α_grid_0[2])),
+                            rand(Uniform(β_grid_0[1], β_grid_0[2])));
     end
 
     hyper_grid = zeros(4, length(error_grid));
