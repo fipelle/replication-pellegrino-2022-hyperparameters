@@ -165,6 +165,7 @@ Define an immutable structure used to initialise the estimation routine.
 
 # Arguments
 - `Y`: observed measurements (`nxT`)
+- `Y_output`: observed measurements (`nxTT`) to use to construct the KalmanSettings output (`TT` can be different than `T`). It is not used for the estimation.
 - `n`: Number of series
 - `T`: Number of observations
 - `p`: Number of lags
@@ -181,6 +182,7 @@ Define an immutable structure used to initialise the estimation routine.
 """
 struct EstimSettings
     Y::JArray{Float64,2}
+    Y_output::JArray{Float64,2}
     n::Int64
     T::Int64
     p::Int64
@@ -207,9 +209,12 @@ function build_Γ(n::Int64, p::Int64, λ::Number, β::Number)
     return λ.*Diagonal(vec_Γ)::DiagMatrix;
 end
 
-# EstimSettings constructor
+# EstimSettings constructors
 EstimSettings(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true) =
-    EstimSettings(Y, size(Y,1), size(Y,2), p, size(Y,1)*p, λ, α, β, build_Γ(size(Y,1), p, λ, β), ε, tol, max_iter, prerun, verb);
+    EstimSettings(Y, Y, size(Y,1), size(Y,2), p, size(Y,1)*p, λ, α, β, build_Γ(size(Y,1), p, λ, β), ε, tol, max_iter, prerun, verb);
+
+EstimSettings(Y::JArray{Float64,2}, Y_output::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true) =
+    EstimSettings(Y, Y_output, size(Y,1), size(Y,2), p, size(Y,1)*p, λ, α, β, build_Γ(size(Y,1), p, λ, β), ε, tol, max_iter, prerun, verb);
 
 # Validation types
 
@@ -226,7 +231,16 @@ The arguments are two dimensional arrays representing the bounds of the grid for
     - 2 Out-of-sample error
     - 3 Block jackknife error
     - 4 Artificial jackknife error
+- `Y`: observed measurements (`nxT`)
+- `Y_output`: observed measurements (`nxTT`) to use to construct the KalmanSettings output (`TT` can be different than `T`). It is not used for the estimation.
+- `n`: Number of series
+- `T`: Number of observations
+- `ε`: Small number (default: 1e-8)
+- `tol`: tolerance used to check convergence (default: 1e-3)
+- `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
+- `prerun`: number of iterations prior the actual estimation algorithm (default: 2)
 - `verb`: Verbose output (default: true)
+- `verb_estim`: Verbose output for the estimation algorithm (default: true)
 - `t0`: weight associated to the LASSO component of the elastic-net penalty
 - `subsample`: Number of observations removed in the subsampling process, as a percentage of the original sample size. It is bounded between 0 and 1.
 - `max_samples`: if `C(T*n,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples. (used only for the artificial jackknife)
@@ -234,7 +248,15 @@ The arguments are two dimensional arrays representing the bounds of the grid for
 """
 struct ValidationSettings
     err_type::Int64
+    Y::JArray{Float64,2}
+    n::Int64
+    T::Int64
+    ε::Float64
+    tol::Float64
+    max_iter::Int64
+    prerun::Int64
     verb::Bool
+    verb_estim::Bool
     t0::Union{Int64, Nothing}
     subsample::Union{Float64, Nothing}
     max_samples::Union{Int64, Nothing}
@@ -242,18 +264,11 @@ struct ValidationSettings
 end
 
 # Constructor for ValidationSettings
-function ValidationSettings(err_type::Int64; verb::Bool=true, log_folder_path::Union{String, Nothing}=nothing)
+function ValidationSettings(err_type::Int64, Y::JArray{Float64,2}; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2,
+                            verb::Bool=true, verb_estim::Bool=false, t0::Union{Int64, Nothing}=nothing, subsample::Union{Float64, Nothing}=nothing,
+                            max_samples::Union{Int64, Nothing}=nothing, log_folder_path::Union{String, Nothing}=nothing)
 
-    # Error management
-    if err_type != 1
-        error("Must specify t0!");
-    end
-
-    if err_type == 4
-        error("Must specify max_samples!");
-    end
-
-    return ValidationSettings(err_type, verb, nothing, nothing, nothing, log_folder_path);
+    return ValidationSettings(err_type, Y, size(Y,1), size(Y,2), ε, tol, max_iter, prerun, verb, verb_estim, t0, subsample, max_samples, log_folder_path);
 end
 
 """

@@ -46,7 +46,7 @@ function ecm(estim_settings::EstimSettings)
     # Run ECM
     for iter=1:estim_settings.max_iter
 
-        # Run Kalman filter and smoother
+        # Run Kalman filter
         status = KalmanStatus();
         for t=1:kalman_settings.T
             kfilter!(kalman_settings, status);
@@ -91,7 +91,7 @@ function ecm(estim_settings::EstimSettings)
     end
 
     # Return output
-    out_kalman_settings = ImmutableKalmanSettings(estim_settings.Y,
+    out_kalman_settings = ImmutableKalmanSettings(estim_settings.Y_output,
                                                   kalman_settings.B, kalman_settings.R,
                                                   kalman_settings.C, kalman_settings.V,
                                                   kalman_settings.X0, kalman_settings.P0);
