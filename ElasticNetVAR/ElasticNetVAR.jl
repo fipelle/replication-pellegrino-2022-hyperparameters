@@ -20,9 +20,10 @@ module ElasticNetVAR
 	include("$local_path/ecm_new.jl");
 	include("$local_path/jackknife.jl");
 	include("$local_path/validation.jl");
+	include("$local_path/validation_new.jl");
 
 	# Export
-	export JVector, JArray, KalmanSettings, KalmanStatus, EstimSettings;
+	export JVector, JArray, KalmanSettings, KalmanStatus, EstimSettings, ValidationSettings, HyperGrid;
 	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, sym, sym_inv, demean, lag, companion_form, ext_companion_form, no_combinations, rand_without_replacement!;
 	export kalman;
 	export kfilter!, kforecast, ksmoother;

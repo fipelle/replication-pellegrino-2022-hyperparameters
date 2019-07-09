@@ -42,8 +42,10 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
                               rand(Uniform(γ_grid.β[1], γ_grid.β[2]))];
     end
 
-    open("$(validation_settings.log_folder_path)/status.txt", "w") do io
-        write(io, "")
+    if ~isnothing(validation_settings.log_folder_path)
+        open("$(validation_settings.log_folder_path)/status.txt", "w") do io
+            write(io, "")
+        end
     end
 
     for iter=1:γ_grid.draws
@@ -56,8 +58,10 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
         if validation_settings.verb == true
             message = "select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
             println(message);
-            open("$(validation_settings.log_folder_path)/status.txt", "a") do io
-                write(io, "$message\n")
+            if ~isnothing(validation_settings.log_folder_path)
+                open("$(validation_settings.log_folder_path)/status.txt", "a") do io
+                    write(io, "$message\n")
+                end
             end
         end
 
@@ -102,15 +106,15 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
 
     # Jackknife out-of-sample
     if validation_settings.err_type > 2
-        μ = mean(jth_jackknife_data[:, 1:t0], dims=2);
-        σ = std(jth_jackknife_data[:, 1:t0], dims=2);
+        μ = mean_skipmissing(jth_jackknife_data[:, 1:t0]);
+        σ = std_skipmissing(jth_jackknife_data[:, 1:t0]);
         Y = @. jth_jackknife_data[:, 1:t0] - μ;
         Y_output = @. jth_jackknife_data - μ;
 
     # Standard out-of-sample
     else
-        μ = mean(validation_settings.Y[:, 1:t0], dims=2);
-        σ = std(validation_settings.Y[:, 1:t0], dims=2);
+        μ = mean_skipmissing(validation_settings.Y[:, 1:t0]);
+        σ = std_skipmissing(validation_settings.Y[:, 1:t0]);
         Y = @. validation_settings.Y[:, 1:t0] - μ;
         Y_output = @. validation_settings.Y - μ;
     end
@@ -128,16 +132,16 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
     end
 
     # Residuals
-    forecast  = hcat(status.X_prior...)[1:validation_settings.n, :];
+    forecast  = hcat(status.history_X_prior...)[1:validation_settings.n, :];
     std_resid = @. ((forecast - Y)/σ)^2;
 
     # In-sample error
     if validation_settings.err_type == 1
-        return compute_loss(std_resid)::Float64;
+        return compute_loss(std_resid);
 
     # Out-of-sample error
     else
-        return compute_loss(std_resid[:, t0+1:end])::Float64;
+        return compute_loss(std_resid[:, t0+1:end]);
     end
 end
 
@@ -148,9 +152,9 @@ end
 
 Compute loss function.
 """
-compute_loss(std_resid::FloatArray) = mean(mean(std_resid, dims=1), dims=2);
+compute_loss(std_resid::FloatArray) = mean(mean(std_resid, dims=1), dims=2)[1]::Float64;
 compute_loss(std_resid::Array{Missing}) = NaN;
-compute_loss(std_resid::JArray{Float64}) = mean([mean_skipmissing(std_resid[:,t]) for t=1:size(std_resid,2)]);
+compute_loss(std_resid::JArray{Float64}) = mean([mean_skipmissing(std_resid[:,t]) for t=1:size(std_resid,2)])[1]::Float64;
 
 """
     jackknife_err(validation_settings::ValidationSettings, p::Int64, λ::Number, α::Number, β::Number)

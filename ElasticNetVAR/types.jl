@@ -181,8 +181,8 @@ Define an immutable structure used to initialise the estimation routine.
 - `verb`: Verbose output (default: true)
 """
 struct EstimSettings
-    Y::JArray{Float64,2}
-    Y_output::JArray{Float64,2}
+    Y::Union{FloatArray, JArray{Float64}}
+    Y_output::Union{FloatArray, JArray{Float64}}
     n::Int64
     T::Int64
     p::Int64
@@ -210,10 +210,10 @@ function build_Γ(n::Int64, p::Int64, λ::Number, β::Number)
 end
 
 # EstimSettings constructors
-EstimSettings(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true) =
+EstimSettings(Y::Union{FloatArray, JArray{Float64}}, p::Int64, λ::Number, α::Number, β::Number; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true) =
     EstimSettings(Y, Y, size(Y,1), size(Y,2), p, size(Y,1)*p, λ, α, β, build_Γ(size(Y,1), p, λ, β), ε, tol, max_iter, prerun, verb);
 
-EstimSettings(Y::JArray{Float64,2}, Y_output::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true) =
+EstimSettings(Y::Union{FloatArray, JArray{Float64}}, Y_output::Union{FloatArray, JArray{Float64}}, p::Int64, λ::Number, α::Number, β::Number; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb::Bool=true) =
     EstimSettings(Y, Y_output, size(Y,1), size(Y,2), p, size(Y,1)*p, λ, α, β, build_Γ(size(Y,1), p, λ, β), ε, tol, max_iter, prerun, verb);
 
 # Validation types
@@ -248,7 +248,7 @@ The arguments are two dimensional arrays representing the bounds of the grid for
 """
 struct ValidationSettings
     err_type::Int64
-    Y::JArray{Float64,2}
+    Y::Union{FloatArray, JArray{Float64}}
     n::Int64
     T::Int64
     ε::Float64
@@ -264,7 +264,7 @@ struct ValidationSettings
 end
 
 # Constructor for ValidationSettings
-function ValidationSettings(err_type::Int64, Y::JArray{Float64,2}; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2,
+function ValidationSettings(err_type::Int64, Y::Union{FloatArray, JArray{Float64}}; ε::Float64=1e-8, tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2,
                             verb::Bool=true, verb_estim::Bool=false, t0::Union{Int64, Nothing}=nothing, subsample::Union{Float64, Nothing}=nothing,
                             max_samples::Union{Int64, Nothing}=nothing, log_folder_path::Union{String, Nothing}=nothing)
 
