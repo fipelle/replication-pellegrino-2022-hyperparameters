@@ -295,11 +295,11 @@ function ksmoother(settings::KalmanSettings, status::KalmanStatus)
 end
 
 """
-    ksmoother_ecm(estim_settings::EstimSettings, kalman_settings::KalmanSettings, status::KalmanStatus)
+    ksmoother_ecm!(estim_settings::EstimSettings, kalman_settings::MutableKalmanSettings, status::KalmanStatus)
 
 Kalman smoother: RTS smoother from the last evaluated time period in status to t==0.
 
-This instance of the smoother returns the ECM statistics and new initial conditions.
+This instance of the smoother returns the ECM statistics and updates the initial conditions in KalmanSettings.
 
 # Model
 The state space model used below is,
@@ -315,7 +315,7 @@ Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
 - `kalman_settings`: KalmanSettings struct
 - `status`: KalmanStatus struct
 """
-function ksmoother_ecm(estim_settings::EstimSettings, kalman_settings::KalmanSettings, status::KalmanStatus)
+function ksmoother_ecm!(estim_settings::EstimSettings, kalman_settings::MutableKalmanSettings, status::KalmanStatus)
 
     # Memory pre-allocation
     E = zeros(estim_settings.n, estim_settings.n);
@@ -352,18 +352,18 @@ function ksmoother_ecm(estim_settings::EstimSettings, kalman_settings::KalmanSet
 
     # Compute smoothed estimates for t==0
     J1 = compute_J1(kalman_settings.P0, Pp, kalman_settings);
-    X0 = backwards_pass(kalman_settings.X0, J1, Xs, Xp);
-    P0 = backwards_pass(kalman_settings.P0, J1, Ps, Pp);
+    kalman_settings.X0 = backwards_pass(kalman_settings.X0, J1, Xs, Xp);
+    kalman_settings.P0 = backwards_pass(kalman_settings.P0, J1, Ps, Pp);
 
     # Update ECM statistics
-    update_ecm_stats!(estim_settings, Xs, X0, Ps, P0, E, F, G);
+    update_ecm_stats!(estim_settings, Xs, kalman_settings.X0, Ps, kalman_settings.P0, E, F, G);
 
     # Use Symmetric for E and G
     E_sym = Symmetric(E)::SymMatrix;
     G_sym = Symmetric(G)::SymMatrix;
 
     # Return ECM statistics
-    return E_sym, F, G_sym, X0, P0;
+    return E_sym, F, G_sym;
 end
 
 """

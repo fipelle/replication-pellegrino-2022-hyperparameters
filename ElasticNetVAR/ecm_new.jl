@@ -74,7 +74,7 @@ function ecm(estim_settings::EstimSettings)
             verb_message(estim_settings.verb, "ecm > prerun $iter (out of $(estim_settings.prerun))");
         end
 
-        E, F, G, kalman_settings.X0, kalman_settings.P0 = ksmoother_ecm(estim_settings, kalman_settings, status);
+        E, F, G = ksmoother_ecm!(estim_settings, kalman_settings, status);
 
         # VAR(p) coefficients
         Φ = @. 1 / (abs(Ψ) + estim_settings.ε);
