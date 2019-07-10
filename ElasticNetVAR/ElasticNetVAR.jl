@@ -13,17 +13,13 @@ module ElasticNetVAR
 	include("$local_path/types.jl");
     include("$local_path/methods.jl");
 	include("$local_path/coordinate_descent.jl");
-	include("$local_path/coordinate_descent_new.jl");
 	include("$local_path/kalman.jl");
-	include("$local_path/kalman_new.jl");
 	include("$local_path/ecm.jl");
-	include("$local_path/ecm_new.jl");
 	include("$local_path/jackknife.jl");
 	include("$local_path/validation.jl");
-	include("$local_path/validation_new.jl");
 
 	# Export
-	export JVector, JArray, KalmanSettings, KalmanStatus, EstimSettings, ValidationSettings, HyperGrid;
+	export JVector, JArray, ImmutableKalmanSettings, KalmanStatus, EstimSettings, ValidationSettings, HyperGrid;
 	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, sym, sym_inv, demean, lag, companion_form, ext_companion_form, no_combinations, rand_without_replacement!;
 	export kalman;
 	export kfilter!, kforecast, ksmoother;

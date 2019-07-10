@@ -8,23 +8,19 @@ using LinearAlgebra
 
 Y=DataFrame(load("./data/data.csv")) |> JArray{Float64,2};
 Y=Y' |> JArray{Float64,2}; # full data
+Y = Y[5:10, 1:200];
 
 const FloatVector  = Array{Float64,1};
 const FloatArray   = Array{Float64};
 const SymMatrix    = Symmetric{Float64,Array{Float64,2}};
 const DiagMatrix   = Diagonal{Float64,Array{Float64,1}};
 
-# ------------------------------
-# from ecm.jl
-# ------------------------------
+p_grid=[2, 4]; λ_grid=[1e-4, 10]; α_grid=[0,1]; β_grid=[1,10];
+vs = ValidationSettings(4, Y, t0=100, subsample=0.1, max_samples=100);
+hg = HyperGrid(p_grid, λ_grid, α_grid, β_grid, 5);
 
-p=2; λ=0.6; α=0.5; β=1.2;
-@time out_old = ecm(Y, p, λ, α, β);
+#Random.seed!(1);
+#@time out_old = select_hyperparameters(Y, p_grid, λ_grid, α_grid, β_grid, 2, rs_draws=5, verb=false);
 
-
-# ------------------------------
-# New code
-# ------------------------------
-
-estim_settings = EstimSettings(Y, p, λ, α, β)
-@time out_new = ecm(estim_settings);
+Random.seed!(1);
+@time out_new = select_hyperparameters(vs, hg);
