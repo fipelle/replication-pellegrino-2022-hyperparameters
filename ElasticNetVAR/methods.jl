@@ -143,25 +143,6 @@ Soft thresholding operator.
 """
 soft_thresholding(z::Float64, ζ::Float64) = sign(z)*max(abs(z)-ζ, 0);
 
-"""
-    sym(X::Array{Float64,2})
-
-Make sure the matrix `X` is symmetric.
-"""
-sym(X::Array{Float64,2}) = LinearAlgebra.Symmetric(X) |> Array; #(X+X')/2;
-
-"""
-    sym_inv(X::Array{Float64,2})
-
-Make sure the inverse of `X` is symmetric.
-"""
-function sym_inv(X::Array{Float64,2})
-    eig_dec = LinearAlgebra.eigen(sym(X));
-    inv_matr = sym(eig_dec.vectors*Diagonal(eig_dec.values.^-1)*eig_dec.vectors');
-    return inv_matr;
-end # TBD: remove the *sym* functions
-
-
 #=
 --------------------------------------------------------------------------------------------------------------------------------
 Transformations
@@ -259,11 +240,11 @@ function lag(X::Array, p::Int64)
 end
 
 """
-    companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+    companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
 
 Construct the companion form parameters of a VAR(p) with coefficients Ψ and var-cov matrix of the residuals Σ.
 """
-function companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+function companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
 
     # Dimensions
     n = size(Σ,2);
@@ -272,32 +253,17 @@ function companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
     # Companion form VAR(p)
     C = [Ψ; Matrix(I, np_1, np_1) zeros(np_1, n)];
-    V = [Σ zeros(n, np_1); zeros(np_1, n*p)];
+    V = Symmetric([Σ zeros(n, np_1); zeros(np_1, n*p)])::SymMatrix;
 
     # Return output
     return C, V;
 end
 
 """
-    ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+    ext_companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
 
 Construct the companion form parameters of a VAR(p) with coefficients Ψ and var-cov matrix of the residuals Σ. The companion form is extend with additional n entries.
 """
-function ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
-
-    # Dimensions
-    n = size(Σ,2);
-    p = Int64(size(Ψ,2)/n);
-    np = n*p;
-
-    # Companion form VAR(p)
-    C = [Ψ zeros(n, n); Matrix(I, np, np) zeros(np, n)];
-    V = [Σ zeros(n, np); zeros(np, np+n)];
-
-    # Return output
-    return C, V;
-end # TBD remove the function above and change the non ext case to handle SymMatrices
-
 function ext_companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
 
     # Dimensions
