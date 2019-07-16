@@ -32,37 +32,13 @@ check_bounds(X::Number, LB::Number, UB::Number) = X < LB || X > UB ? throw(Domai
 check_bounds(X::Number, LB::Number) = X < LB ? throw(DomainError) : nothing
 
 """
-    sum_skipmissing(X::JVector)
-
-Compute the sum of the observed values in `X`.
-
-    sum_skipmissing(X::JArray)
-
-Compute the sum of the observed values `X` column wise.
-
-# Examples
-```jldoctest
-julia> sum_skipmissing([1.0; missing; 3.0])
-4.0
-
-julia> sum_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
-3-element Array{Float64,1}:
- 3.0
- 3.0
- 8.0
-```
-"""
-sum_skipmissing(X::JVector) = sum(skipmissing(X));
-sum_skipmissing(X::JArray) = vcat([sum_skipmissing(X[i,:]) for i=1:size(X,1)]...);
-
-"""
-    mean_skipmissing(X::FloatVector)
-    mean_skipmissing(X::JVector)
+    mean_skipmissing(X::AbstractArray{Float64,1})
+    mean_skipmissing(X::AbstractArray{Union{Missing, Float64},1})
 
 Compute the mean of the observed values in `X`.
 
-    mean_skipmissing(X::FloatArray)
-    mean_skipmissing(X::JArray)
+    mean_skipmissing(X::AbstractArray{Float64})
+    mean_skipmissing(X::AbstractArray{Union{Missing, Float64}})
 
 Compute the mean of the observed values in `X` column wise.
 
@@ -78,19 +54,19 @@ julia> mean_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
  4.0
 ```
 """
-mean_skipmissing(X::FloatVector) = mean(X);
-mean_skipmissing(X::FloatArray) = mean(X, dims=2);
-mean_skipmissing(X::JVector) = mean(skipmissing(X));
-mean_skipmissing(X::JArray) = vcat([mean_skipmissing(X[i,:]) for i=1:size(X,1)]...);
+mean_skipmissing(X::AbstractArray{Float64,1}) = mean(X);
+mean_skipmissing(X::AbstractArray{Float64}) = mean(X, dims=2);
+mean_skipmissing(X::AbstractArray{Union{Missing, Float64},1}) = mean(skipmissing(X));
+mean_skipmissing(X::AbstractArray{Union{Missing, Float64}}) = vcat([mean_skipmissing(X[i,:]) for i=1:size(X,1)]...);
 
 """
-    std_skipmissing(X::FloatVector)
-    std_skipmissing(X::JVector)
+    std_skipmissing(X::AbstractArray{Float64,1})
+    std_skipmissing(X::AbstractArray{Union{Missing, Float64},1})
 
 Compute the standard deviation of the observed values in `X`.
 
-    std_skipmissing(X::FloatArray)
-    std_skipmissing(X::JArray)
+    std_skipmissing(X::AbstractArray{Float64})
+    std_skipmissing(X::AbstractArray{Union{Missing, Float64}})
 
 Compute the standard deviation of the observed values in `X` column wise.
 
@@ -106,10 +82,10 @@ julia> std_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
    1.4142135623730951
 ```
 """
-std_skipmissing(X::FloatVector) = std(X);
-std_skipmissing(X::FloatArray) = std(X, dims=2);
-std_skipmissing(X::JVector) = std(skipmissing(X));
-std_skipmissing(X::JArray) = vcat([std_skipmissing(X[i,:]) for i=1:size(X,1)]...);
+std_skipmissing(X::AbstractArray{Float64,1}) = std(X);
+std_skipmissing(X::AbstractArray{Float64}) = std(X, dims=2);
+std_skipmissing(X::AbstractArray{Union{Missing, Float64},1}) = std(skipmissing(X));
+std_skipmissing(X::AbstractArray{Union{Missing, Float64}}) = vcat([std_skipmissing(X[i,:]) for i=1:size(X,1)]...);
 
 """
     is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix)
@@ -176,10 +152,10 @@ julia> demean([1.0 3.5 1.5 4.0 2.0; 4.5 2.5 5.0 3.0 5.5])
   0.4  -1.6   0.9  -1.1   1.4
 ```
 """
-demean(X::Array{Float64,1}) = X.-mean(X);
-demean(X::Array{Float64,2}) = X.-mean(X,dims=2);
-demean(X::JVector) = X.-mean_skipmissing(X);
-demean(X::JArray) = X.-mean_skipmissing(X);
+demean(X::Array{Float64,1}) = X .- mean(X);
+demean(X::Array{Float64,2}) = X .- mean(X,dims=2);
+demean(X::JVector) = X .- mean_skipmissing(X);
+demean(X::JArray) = X .- mean_skipmissing(X);
 
 
 #=
