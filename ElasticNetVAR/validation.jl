@@ -54,7 +54,7 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
         p, λ, α, β = candidates[:,iter];
         p = Int64(p);
 
-        # Update log
+        # Update log (TBD - this block)
         if validation_settings.verb == true
             message = "select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
             println(message);
@@ -65,12 +65,14 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
             end
         end
 
-        # Evaluate
-        if validation_settings.err_type < 3
+        # In-sample or standard out-of-sample
+        if validation_settings.err_type <= 2
             errors[iter], inactive_sample = fc_err(validation_settings, p, λ, α, β);
             if inactive_sample == 1
                 error("The validation sample is a matrix of missings!");
             end
+
+        # Jackknife out-of-sample
         else
             errors[iter] = jackknife_err(validation_settings, p, λ, α, β);
         end
@@ -109,18 +111,19 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
 
     # Jackknife out-of-sample
     if validation_settings.err_type > 2
-        μ = mean_skipmissing(jth_jackknife_data[:, 1:t0]);
-        σ = std_skipmissing(jth_jackknife_data[:, 1:t0]);
-        Y = @. jth_jackknife_data[:, 1:t0] - μ;
-        Y_output = @. jth_jackknife_data - μ;
+        data = jth_jackknife_data;
 
-    # Standard out-of-sample
+    # Standard in-sample or out-of-sample
     else
-        μ = mean_skipmissing(validation_settings.Y[:, 1:t0]);
-        σ = std_skipmissing(validation_settings.Y[:, 1:t0]);
-        Y = @. validation_settings.Y[:, 1:t0] - μ;
-        Y_output = @. validation_settings.Y - μ;
+        data = validation_settings.Y;
     end
+
+    # Data
+    data_presample = @view data[:, 1:t0];
+    μ = mean_skipmissing(data_presample);
+    σ = std_skipmissing(data_presample);
+    Y = @. data_presample - μ;
+    Y_output = @. data - μ;
 
     # Construct estim_settings
     estim_settings = EstimSettings(Y, Y_output, p, λ, α, β, ε=validation_settings.ε, tol=validation_settings.tol, max_iter=validation_settings.max_iter, prerun=validation_settings.prerun, verb=validation_settings.verb_estim);
@@ -144,34 +147,38 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
 
     # Out-of-sample error
     else
-        return compute_loss(std_resid[:, t0+1:end]);
+        std_resid_oos = @view std_resid[:, t0+1:end];
+        return compute_loss(std_resid_oos);
     end
 end
 
 """
-    compute_loss(std_resid::FloatArray)
-    compute_loss(std_resid::Array{Missing})
-    compute_loss(std_resid::JArray{Float64})
+    compute_loss(std_resid::AbstractArray{Float64})
+    compute_loss(std_resid::AbstractArray{Missing})
+    compute_loss(std_resid::AbstractArray{Union{Float64, Missing}})
 
 Compute loss function.
 """
-compute_loss(std_resid::FloatArray) = [mean(mean(std_resid, dims=1), dims=2)[1], 0.0];
-compute_loss(std_resid::Array{Missing}) = [0.0, 1.0];
-function compute_loss(std_resid::JArray{Float64})
+compute_loss(std_resid::AbstractArray{Float64}) = [mean(mean(std_resid, dims=1), dims=2)[1], 0.0];
+compute_loss(std_resid::AbstractArray{Missing}) = [0.0, 1.0];
+function compute_loss(std_resid::AbstractArray{Union{Float64, Missing}})
     loss = 0.0;
     inactive_periods = 0.0;
-    for t=1:size(std_resid,2)
-        if sum(.~ismissing.(std_resid[:,t])) > 0
-            loss += mean_skipmissing(std_resid[:,t])
+    T = size(std_resid,2);
+
+    for t=1:T
+        std_resid_t = @view std_resid[:,t];
+        if sum(.~ismissing.(std_resid_t)) > 0
+            loss += mean_skipmissing(std_resid_t);
         else
             inactive_periods += 1.0;
         end
     end
 
-    if inactive_periods == size(std_resid,2)
-        return [0.0 1.0];
+    if inactive_periods == T
+        return [0.0, 1.0];
     else
-        return [loss/(size(std_resid,2)-inactive_periods) 0.0];
+        return [loss/(T-inactive_periods), 0.0];
     end
 end
 
@@ -217,6 +224,9 @@ function jackknife_err(validation_settings::ValidationSettings, p::Int64, λ::Nu
 
     # Compute average jackknife loss
     loss, inactive_samples = output_fc_err;
+    if samples == inactive_samples
+        error("All samples are inactive! Check the initial settings or try a different random seed.");
+    end
     loss *= 1/(samples-inactive_samples);
 
     verb_message(validation_settings.verb_estim, "");
