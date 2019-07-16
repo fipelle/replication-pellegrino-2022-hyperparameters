@@ -1,99 +1,28 @@
 """
-    ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+    ecm(estim_settings::EstimSettings)
 
 Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2019).
 
 # Arguments
-- `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
-- `p`: number of lags in the vector autoregression
-- `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
-- `α`: weight associated to the LASSO component of the elastic-net penalty
-- `β`: additional shrinkage for distant lags (p>1)
-- `tol`: tolerance used to check convergence (default: 1e-3)
-- `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
-- `prerun`: number of iterations prior the actual ECM estimation routine (default: 2)
-- `verb`: Verbose output (default: true)
+- `estim_settings`: settings used for the estimation
 
 # References
 Pellegrino (2019)
 """
-function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, prerun::Int64=2, verb=true)
+function ecm(estim_settings::EstimSettings)
 
-    #=
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    Settings
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    =#
-
-    # Check hyper-parameters
-    if β < 1
-        error("β ≥ 1");
-    end
-
-    if α < 0 || α > 1
-        error("0 ≤ α ≤ 1");
-    end
-
-    if λ < 0
-        error("λ ≥ 0");
-    end
-
-    # Check init_iter
-    if max_iter < 3
-        error("max_iter > 2");
-    end
-
-    if prerun >= max_iter
-        error("prerun < max_iter");
-    end
-
-    # Dimensions
-    n, T = size(Y);
-    np = n*p;
-    if n < 2
-        error("This code is not compatible with univariate autoregressions");
-    end
-
-    # ε
-    ε = 1e-8;
-
-    # Gamma matrix
-    Γ = [];
-    for i=0:p-1
-        if i == 0
-            Γ = ones(n);
-        else
-            Γ = vcat(Γ, (β^i).*ones(n));
-        end
-    end
-    Γ = Diagonal(λ.*Γ);
-
-
-    #=
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    ECM initialisation
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    =#
-
-    # Interpolated data (used for the initialisation only)
-    Y_init = copy(Y);
-    for i=1:n
-        Y_init[i, ismissing.(Y_init[i, :])] .= mean_skipmissing(Y_init[i, :]);
-    end
-    Y_init = Y_init |> Array{Float64};
+    # Check inputs
+    check_bounds(estim_settings.p, 1);
+    check_bounds(estim_settings.λ, 0);
+    check_bounds(estim_settings.α, 0, 1);
+    check_bounds(estim_settings.β, 1);
+    check_bounds(estim_settings.max_iter, 3);
+    check_bounds(estim_settings.max_iter, estim_settings.prerun);
+    check_bounds(estim_settings.n, 2); # It supports only multivariate models (for now ...)
 
     # Initialise using the coordinate descent algorithm
-    if verb == true
-        println("ecm > initialisation");
-    end
-    Ψ̂_init, Σ̂_init = coordinate_descent(Y_init, p, λ, α, β, tol=tol, max_iter=max_iter, verb=false);
-
-
-    #=
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    Memory pre-allocation
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    =#
+    verb_message(estim_settings.verb, "ecm > initialisation");
+    Ψ_init, Σ_init = coordinate_descent(estim_settings);
 
     #=
     The state vector includes additional n terms with respect to the standard VAR companion form representation.
@@ -101,102 +30,81 @@ function ecm(Y::JArray{Float64,2}, p::Int64, λ::Number, α::Number, β::Number;
     =#
 
     # State-space parameters
-    B̂ = [Matrix{Float64}(I, n, n) zeros(n, np)];
-    R̂ = Matrix{Float64}(I, n, n).*ε;
-    Ĉ, V̂ = ext_companion_form(Ψ̂_init, Σ̂_init);
-
-    # Initial conditions
-    𝔛0̂ = zeros(np+n);
-    P0̂ = reshape((I-kron(Ĉ, Ĉ))\V̂[:], np+n, np+n);
-    P0̂ = sym(P0̂);
+    kalman_settings = MutableKalmanSettings(estim_settings.Y,
+                                            [Matrix{Float64}(I, estim_settings.n, estim_settings.n) zeros(estim_settings.n, estim_settings.np)],
+                                            Symmetric(Matrix{Float64}(I, estim_settings.n, estim_settings.n).*estim_settings.ε)::SymMatrix,
+                                            ext_companion_form(Ψ_init, Σ_init)...);
 
     # Initialise additional variables
-    Ψ̂ = Ĉ[1:n, 1:np];
-    Σ̂ = V̂[1:n, 1:n];
-    Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+ε);
+    Ψ = @view kalman_settings.C[1:estim_settings.n, 1:estim_settings.np];
+    Φ = @. 1 / (abs(Ψ) + estim_settings.ε);
 
     # ECM controls
     pen_loglik_old = -Inf;
     pen_loglik_new = -Inf;
 
-
-    #=
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    ECM algorithm
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    =#
-
     # Run ECM
-    for iter=1:max_iter
+    for iter=1:estim_settings.max_iter
 
-        # Run Kalman filter and smoother
-        𝔛ŝ, Pŝ, _, 𝔛s_0̂, Ps_0̂, _, _, _, loglik = kalman(Y, B̂, R̂, Ĉ, V̂, 𝔛0̂, P0̂; loglik_flag=true);
+        # Run Kalman filter
+        status = KalmanStatus();
+        for t=1:kalman_settings.T
+            kfilter!(kalman_settings, status);
+        end
 
-        if iter > prerun
+        if iter > estim_settings.prerun
 
             # New penalised loglikelihood
-            pen_loglik_new = loglik - 0.5*tr(sym_inv(Σ̂)*((1-α).*sym(Ψ̂*Γ*Ψ̂') + α.*sym((Ψ̂.*sqrt.(Φ̂ᵏ))*Γ*(Ψ̂.*sqrt.(Φ̂ᵏ))')));
-            if verb == true
-                println("ecm > iter=$(iter-prerun), penalised loglik=$(round(pen_loglik_new, digits=5))");
-            end
+            Σ = Symmetric(@view parent(kalman_settings.V)[1:estim_settings.n, 1:estim_settings.n]);
+            pen_loglik_new = status.loglik - envar_penalty(estim_settings, Σ, Ψ, Φ);
+            verb_message(estim_settings.verb, "ecm > iter=$(iter-estim_settings.prerun), penalised loglik=$(round(pen_loglik_new, digits=5))");
 
             # Stop when the ECM algorithm converges
-            if iter > prerun+1
-                if (pen_loglik_new-pen_loglik_old)./(abs(pen_loglik_old)+ε) <= tol
-                    if verb == true
-                        println("ecm > converged!");
-                        println("");
-                    end
+            if iter > estim_settings.prerun+1
+                if isconverged(pen_loglik_new, pen_loglik_old, estim_settings.tol, estim_settings.ε, true)
+                    verb_message(estim_settings.verb, "ecm > converged!\n");
                     break;
                 end
             end
 
             # Store current run information
-            pen_loglik_old = copy(pen_loglik_new);
+            pen_loglik_old = pen_loglik_new;
 
-        elseif verb == true
-            println("ecm > prerun $iter (out of $prerun)");
+        else
+            verb_message(estim_settings.verb, "ecm > prerun $iter (out of $(estim_settings.prerun))");
         end
 
-        # Initial conditions
-        𝔛0̂ = copy(𝔛s_0̂);
-        P0̂ = copy(Ps_0̂);
-
-        # ECM statistics
-        Ê = zeros(n, n);
-        F̂ = zeros(n, np);
-        Ĝ = zeros(np, np);
-
-        for t=1:T
-            Ê += 𝔛ŝ[1:n,t]*𝔛ŝ[1:n,t]' + Pŝ[1:n,1:n,t];
-
-            if t == 1
-                F̂ += 𝔛ŝ[1:n,t]*𝔛0̂[1:np]' + Pŝ[1:n,n+1:end,t];
-                Ĝ += 𝔛0̂[1:np]*𝔛0̂[1:np]' + P0̂[1:np,1:np];
-
-            else
-                F̂ += 𝔛ŝ[1:n,t]*𝔛ŝ[1:np,t-1]' + Pŝ[1:n,n+1:end,t];
-                Ĝ += 𝔛ŝ[1:np,t-1]*𝔛ŝ[1:np,t-1]' + Pŝ[1:np,1:np,t-1];
-            end
-        end
+        E, F, G = ksmoother_ecm!(estim_settings, kalman_settings, status);
 
         # VAR(p) coefficients
-        Φ̂ᵏ = 1 ./ (abs.(Ψ̂).+ε);
-        for i=1:n
-            Ĉ[i, 1:np] = sym_inv(Ĝ + Γ.*((1-α)*I + α.*Diagonal(Φ̂ᵏ[i, :])))*F̂[i,:];
+        Φ = @. 1 / (abs(Ψ) + estim_settings.ε);
+        for i=1:estim_settings.n
+            Φ_i = @view Φ[i, :];
+            F_i = @view F[i,:];
+            XX_i = Symmetric(G + estim_settings.Γ.*((1-estim_settings.α)*I + estim_settings.α.*Diagonal(Φ_i)))::SymMatrix;
+            kalman_settings.C[i, 1:estim_settings.np] = inv(XX_i)*F_i;
         end
 
-        # Update Ψ̂
-        Ψ̂ = Ĉ[1:n, 1:np];
-
         # Covariance matrix of the VAR(p) residuals
-        V̂[1:n, 1:n] = sym(Ê-F̂*Ψ̂'-Ψ̂*F̂'+Ψ̂*Ĝ*Ψ̂') + (1-α).*sym(Ψ̂*Γ*Ψ̂') + α.*sym((Ψ̂.*sqrt.(Φ̂ᵏ))*Γ*(Ψ̂.*sqrt.(Φ̂ᵏ))');
-        V̂[1:n, 1:n] *= 1/T;
-        
-        # Update Σ̂
-        Σ̂ = V̂[1:n, 1:n];
+        parent(kalman_settings.V)[1:estim_settings.n, 1:estim_settings.n] =
+            Symmetric(E-F*Ψ'-Ψ*F'+Ψ*G*Ψ' + (1-estim_settings.α).*(Ψ*estim_settings.Γ*Ψ') + estim_settings.α.*((Ψ.*sqrt.(Φ))*estim_settings.Γ*(Ψ.*sqrt.(Φ))'))::SymMatrix ./ estim_settings.T;
     end
 
-    # The output excludes the additional n terms required to estimate the lag-one covariance smoother as described above.
-    return B̂[:,1:np], R̂, Ĉ[1:np,1:np], V̂[1:np,1:np], 𝔛0̂[1:np], P0̂[1:np,1:np], Ψ̂_init, Σ̂_init;
+    # Return output
+    out_kalman_settings = ImmutableKalmanSettings(estim_settings.Y_output,
+                                                  kalman_settings.B, kalman_settings.R,
+                                                  kalman_settings.C, kalman_settings.V,
+                                                  kalman_settings.X0, kalman_settings.P0);
+    return out_kalman_settings;
 end
+
+"""
+    envar_penalty(estim_settings::EstimSettings, Σ::AbstractArray{Float64}, Ψ::SubArray{Float64}, Φ::FloatArray)
+
+Compute the value of the loglikelihood penalty.
+"""
+envar_penalty(estim_settings::EstimSettings, Σ::AbstractArray{Float64}, Ψ::SubArray{Float64}, Φ::FloatArray) = tr(inv(Σ)*(envar_penalty_ridge(estim_settings, Ψ) + envar_penalty_lasso(estim_settings, Ψ, Φ)))::Float64;
+
+# Ridge and LASSO components
+envar_penalty_ridge(estim_settings::EstimSettings, Ψ::SubArray{Float64}) = ((1-estim_settings.α)/2) .* Symmetric(Ψ*estim_settings.Γ*Ψ')::SymMatrix;
+envar_penalty_lasso(estim_settings::EstimSettings, Ψ::SubArray{Float64}, Φ::FloatArray) = (estim_settings.α/2) .* Symmetric((Ψ .* sqrt.(Φ))*estim_settings.Γ*(Ψ .* sqrt.(Φ))')::SymMatrix;

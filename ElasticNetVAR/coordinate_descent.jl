@@ -1,120 +1,63 @@
 """
-    coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, verb::Bool=true)
+    coordinate_descent(estim_settings::EstimSettings)
 
 Estimate an elastic-net VAR(p) with the coordinate descent algorithm (Friedman et al., 2010) as in Pellegrino (2019).
 
 # Arguments
-- `data`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
-- `p`: number of lags in the vector autoregression
-- `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
-- `α`: weight associated to the LASSO component of the elastic-net penalty
-- `β`: additional shrinkage for distant lags (p>1)
-- `tol`: tolerance used to check convergence (default: 1e-3)
-- `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
-- `verb`: Verbose output (default: true)
+- `estim_settings`: settings used for the estimation
 
 # References
 Friedman et al. (2010) and Pellegrino (2019)
 """
-function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Number, β::Number; tol::Float64=1e-3, max_iter::Int64=1000, verb::Bool=true)
+function coordinate_descent(estim_settings::EstimSettings)
 
-    #=
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    Settings
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    =#
+    # Check inputs
+    check_bounds(estim_settings.p, 1);
+    check_bounds(estim_settings.λ, 0);
+    check_bounds(estim_settings.α, 0, 1);
+    check_bounds(estim_settings.β, 1);
+    check_bounds(estim_settings.max_iter, 3);
+    check_bounds(estim_settings.max_iter, estim_settings.prerun);
+    check_bounds(estim_settings.n, 2); # It supports only multivariate models (for now ...)
 
-    # Check hyper-parameters
-    if β < 1
-        error("β ≥ 1");
-    end
-
-    if α < 0 || α > 1
-        error("0 ≤ α ≤ 1");
-    end
-
-    if λ < 0
-        error("λ ≥ 0");
-    end
-
-    # Check init_iter
-    if max_iter < 0
-        error("max_iter > 0");
-    end
+    # Interpolate data
+    data = interpolate(estim_settings.Y, estim_settings.n, estim_settings.T);
 
     # VAR(p) data
-    Y, X = lag(data, p);
-
-    # Dimensions
-    n, T_minus_p = size(Y);
-    np = size(X,1);
-
-    # ε
-    ε = 1e-8;
-
-
-    #=
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    Execution
-    -----------------------------------------------------------------------------------------------------------------------------------------------------
-    =#
+    Y, Y_lagged = lag(data, estim_settings.p);
+    T_minus_p = estim_settings.T - estim_settings.p;
 
     # Memory pre-allocation
-    Ψ̂ = zeros(n, np);
-    Σ̂ = zeros(n, n);
+    Ψ = zeros(estim_settings.n, estim_settings.np);
     objfun_old = -Inf;
     objfun_new = -Inf;
 
-    # Run coordinate_descent(⋅), in turn, for each target variable
-    for i=1:n
+    # Run coordinate_descent, in turn, for each target variable
+    for i=1:estim_settings.n
+
+        # Views
+        Y_i = @view Y[i,:];
+        Ψ_i = @view Ψ[i,:];
 
         # Loop until max_iter is reached
-        for iter=1:max_iter
+        for iter=1:estim_settings.max_iter
 
             # Reset objfun_new
             objfun_new = 0.0;
 
             # Loop over the predictors
-            for j=1:np
-
-                # Partial residuals
-                Ψ̂ᵢ_ex_j = copy(Ψ̂[i,:]);
-                Ψ̂ᵢ_ex_j[j] = 0.0;
-                V̂ᵢⱼ = Y[i,:] - X'*Ψ̂ᵢ_ex_j;
-
-                # Scalar product between Xⱼ and V̂ᵢⱼ divided by (T-p)
-                XV̂ᵢⱼ = sum(V̂ᵢⱼ .* X[j,:])/T_minus_p;
-                XXⱼ = sum(X[j,:].^2)/T_minus_p;
-
-                # Soft-thresholding operator: update for the coefficients
-                hyper_prod = λ*β^floor((j-1)/n);
-                thresh = hyper_prod*α;
-
-                if XV̂ᵢⱼ > thresh
-                    Ψ̂[i, j] = (XV̂ᵢⱼ-thresh)/(XXⱼ + hyper_prod*(1-α));
-                elseif XV̂ᵢⱼ < -thresh
-                    Ψ̂[i, j] = (XV̂ᵢⱼ+thresh)/(XXⱼ + hyper_prod*(1-α));
-                else
-                    Ψ̂[i, j] = 0.0;
-                end
-
-                # Update objfun_new
-                objfun_new += hyper_prod*(0.5*(1-α)*Ψ̂[i,j]^2 + α*abs(Ψ̂[i,j]));
+            for j=1:estim_settings.np
+                objfun_new += ijth_coordinate_update!(i, j, T_minus_p, estim_settings, Y_i, Y_lagged, Ψ);
             end
 
             # Update objfun_new
-            objfun_new += (1/(2*T_minus_p))*sum((Y[i,:] - X'*Ψ̂[i,:]).^2);
-
-            if verb == true
-                println("coordinate_descent ($i-th row) > iter=$(iter), objfun=$(round(objfun_new, digits=5))");
-            end
+            objfun_new += (1/(2*T_minus_p))*sum((Y_i - Y_lagged'*Ψ_i).^2);
+            verb_message(estim_settings.verb, "coordinate_descent ($i-th row) > iter=$(iter), objfun=$(round(objfun_new, digits=5))");
 
             # Stop when the algorithm converges
             if iter > 1
-                if -(objfun_new-objfun_old)./(abs(objfun_old)+ε) <= tol # the minus sign is correct
-                    if verb == true
-                        println("coordinate_descent ($i-th row) > converged!");
-                    end
+                if isconverged(objfun_new, objfun_old, estim_settings.tol, estim_settings.ε, false)
+                    verb_message(estim_settings.verb, "coordinate_descent ($i-th row) > converged!");
                     break;
                 end
             end
@@ -125,15 +68,45 @@ function coordinate_descent(data::Array{Float64,2}, p::Int64, λ::Number, α::Nu
     end
 
     # Print empty line
-    if verb == true
-        println("");
-    end
+    verb_message(estim_settings.verb, "");
 
     # Estimate var-cov matrix of the residuals
-    V̂ = Y - Ψ̂*X;
-    Σ̂ = (V̂*V̂')./T_minus_p;
-    Σ̂ = sym(Σ̂);
+    V = Y - Ψ*Y_lagged;
+    Σ = Symmetric((V*V')./T_minus_p)::SymMatrix;
 
     # Return output
-    return Ψ̂, Σ̂;
+    return Ψ, Σ;
+end
+
+"""
+    ijth_coordinate_update!(i::Int64, j::Int64, T_minus_p::Int64, estim_settings::EstimSettings, Y_i::SubArray{Float64}, Y_lagged::FloatArray, Ψ::FloatArray)
+
+Update the (i,j)-th element of Ψ the coordinate descent algorithm (Friedman et al., 2010) as in Pellegrino (2019).
+
+# References
+Friedman et al. (2010) and Pellegrino (2019)
+"""
+function ijth_coordinate_update!(i::Int64, j::Int64, T_minus_p::Int64, estim_settings::EstimSettings, Y_i::SubArray{Float64}, Y_lagged::FloatArray, Ψ::FloatArray)
+
+    # Views
+    Y_lagged_j = @view Y_lagged[j,:];
+
+    # Partial residuals
+    Ψ_i_ex_j = Ψ[i,:]; # Julia creates a copy of Ψ[i,:]
+    Ψ_i_ex_j[j] = 0.0;
+    V_ij = Y_i - Y_lagged'*Ψ_i_ex_j;
+
+    # Scalar product between Y_lagged_j and V_ij divided by (T-p)
+    scalar_Y_lagged_j = sum(V_ij .* Y_lagged_j)/T_minus_p;
+
+    # Norm squared of Y_lagged_j divided by (T-p)
+    normsq_Y_lagged_j = sum(Y_lagged_j .^ 2)/T_minus_p;
+
+    # Soft-thresholding operator: update for the coefficients
+    hyper_prod = estim_settings.λ*estim_settings.β^fld(j-1, estim_settings.n);
+    Ψ[i, j] = soft_thresholding(scalar_Y_lagged_j, estim_settings.α*hyper_prod)/(normsq_Y_lagged_j + (1-estim_settings.α)*hyper_prod);
+
+    # Return update for objfun_new
+    update_objfun_new = hyper_prod*(0.5*(1-estim_settings.α)*Ψ[i,j]^2 + estim_settings.α*abs(Ψ[i,j]));
+    return update_objfun_new;
 end

@@ -1,39 +1,44 @@
 #=
 --------------------------------------------------------------------------------------------------------------------------------
-Base
+Base and generic math
 --------------------------------------------------------------------------------------------------------------------------------
 =#
 
 """
-    sum_skipmissing(X::JVector)
+    isnothing(::Any)
 
-Compute the sum of the observed values in `X`.
-
-    sum_skipmissing(X::JArray)
-
-Compute the sum of the observed values `X` column wise.
-
-# Examples
-```jldoctest
-julia> sum_skipmissing([1.0; missing; 3.0])
-4.0
-
-julia> sum_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
-3-element Array{Float64,1}:
- 3.0
- 3.0
- 8.0
-```
+True if the argument is ```nothing``` (false otherwise).
 """
-sum_skipmissing(X::JVector) = sum(skipmissing(X));
-sum_skipmissing(X::JArray) = vcat([sum_skipmissing(X[i,:]) for i=1:size(X,1)]...);
+isnothing(::Any) = false;
+isnothing(::Nothing) = true;
 
 """
-    mean_skipmissing(X::JVector)
+    verb_message(verb::Bool, message::String)
+
+Println `message` if `verb` is true.
+"""
+verb_message(verb::Bool, message::String) = verb ? println(message) : nothing;
+
+"""
+    check_bounds(X::Number, LB::Number, UB::Number)
+
+Check whether `X` is larger or equal than `LB` and lower or equal than `UB`
+
+    check_bounds(X::Number, LB::Number)
+
+Check whether `X` is larger or equal than `LB`
+"""
+check_bounds(X::Number, LB::Number, UB::Number) = X < LB || X > UB ? throw(DomainError) : nothing
+check_bounds(X::Number, LB::Number) = X < LB ? throw(DomainError) : nothing
+
+"""
+    mean_skipmissing(X::AbstractArray{Float64,1})
+    mean_skipmissing(X::AbstractArray{Union{Missing, Float64},1})
 
 Compute the mean of the observed values in `X`.
 
-    mean_skipmissing(X::JArray)
+    mean_skipmissing(X::AbstractArray{Float64})
+    mean_skipmissing(X::AbstractArray{Union{Missing, Float64}})
 
 Compute the mean of the observed values in `X` column wise.
 
@@ -49,15 +54,19 @@ julia> mean_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
  4.0
 ```
 """
-mean_skipmissing(X::JVector) = mean(skipmissing(X));
-mean_skipmissing(X::JArray) = vcat([mean_skipmissing(X[i,:]) for i=1:size(X,1)]...);
+mean_skipmissing(X::AbstractArray{Float64,1}) = mean(X);
+mean_skipmissing(X::AbstractArray{Float64}) = mean(X, dims=2);
+mean_skipmissing(X::AbstractArray{Union{Missing, Float64},1}) = mean(skipmissing(X));
+mean_skipmissing(X::AbstractArray{Union{Missing, Float64}}) = vcat([mean_skipmissing(X[i,:]) for i=1:size(X,1)]...);
 
 """
-    std_skipmissing(X::JVector)
+    std_skipmissing(X::AbstractArray{Float64,1})
+    std_skipmissing(X::AbstractArray{Union{Missing, Float64},1})
 
 Compute the standard deviation of the observed values in `X`.
 
-    std_skipmissing(X::JArray)
+    std_skipmissing(X::AbstractArray{Float64})
+    std_skipmissing(X::AbstractArray{Union{Missing, Float64}})
 
 Compute the standard deviation of the observed values in `X` column wise.
 
@@ -73,8 +82,10 @@ julia> std_skipmissing([1.0 2.0; missing 3.0; 3.0 5.0])
    1.4142135623730951
 ```
 """
-std_skipmissing(X::JVector) = std(skipmissing(X));
-std_skipmissing(X::JArray) = vcat([std_skipmissing(X[i,:]) for i=1:size(X,1)]...);
+std_skipmissing(X::AbstractArray{Float64,1}) = std(X);
+std_skipmissing(X::AbstractArray{Float64}) = std(X, dims=2);
+std_skipmissing(X::AbstractArray{Union{Missing, Float64},1}) = std(skipmissing(X));
+std_skipmissing(X::AbstractArray{Union{Missing, Float64}}) = vcat([std_skipmissing(X[i,:]) for i=1:size(X,1)]...);
 
 """
     is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix)
@@ -88,91 +99,31 @@ true
 is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix) = sum(sum(vect.==matr, dims=1).==length(vect)) > 0;
 
 """
-    sym(X::Array{Float64,2})
+    isconverged(new::Float64, old::Float64, tol::Float64, ε::Float64, increasing::Bool)
 
-Make sure the matrix `X` is symmetric.
+Check whether `new` is close enough to `old`.
+
+# Arguments
+- `new`: new objective or loss
+- `old`: old objective or loss
+- `tol`: tolerance
+- `ε`: small Float64
+- `increasing`: true if `new` increases, at each iteration, with respect to `old`
 """
-sym(X::Array{Float64,2}) = LinearAlgebra.Symmetric(X) |> Array; #(X+X')/2;
+isconverged(new::Float64, old::Float64, tol::Float64, ε::Float64, increasing::Bool) = increasing ? (new-old)./(abs(old)+ε) <= tol : -(new-old)./(abs(old)+ε) <= tol;
 
 """
-    sym_inv(X::Array{Float64,2})
+    soft_thresholding(z::Float64, ζ::Float64)
 
-Make sure the inverse of `X` is symmetric.
+Soft thresholding operator.
 """
-function sym_inv(X::Array{Float64,2})
-    eig_dec = LinearAlgebra.eigen(sym(X));
-    inv_matr = sym(eig_dec.vectors*Diagonal(eig_dec.values.^-1)*eig_dec.vectors');
-    return inv_matr;
-end
-
+soft_thresholding(z::Float64, ζ::Float64) = sign(z)*max(abs(z)-ζ, 0);
 
 #=
 --------------------------------------------------------------------------------------------------------------------------------
 Transformations
 --------------------------------------------------------------------------------------------------------------------------------
 =#
-
-"""
-    standardize(X::Array{Float64,1})
-    standardize(X::JVector)
-
-Standardize data to have mean zero and unit variance.
-
-    standardize(X::Array{Float64,2})
-    standardize(X::JArray)
-
-Standardize data to have mean zero and unit variance column wise.
-
-# Examples
-```jldoctest
-julia> standardize([1.0; 1.5; 2.0; 2.5; 3.0])
-5-element Array{Float64,1}:
- -1.26491
- -0.632456
-  0.0
-  0.632456
-  1.26491
-
-julia> standardize([1.0 3.5 1.5 4.0 2.0; 4.5 2.5 5.0 3.0 5.5])
-2×5 Array{Float64,2}:
- -1.08173    0.849934  -0.695401   1.23627   -0.309067
-  0.309067  -1.23627    0.695401  -0.849934   1.08173
-```
-"""
-standardize(X::Array{Float64,1}) = (X.-mean(X))./std(X);
-standardize(X::Array{Float64,2}) = (X.-mean(X,dims=2))./std(X,dims=2);
-standardize(X::JVector) = (X.-mean_skipmissing(X))./std_skipmissing(X);
-standardize(X::JArray) = (X.-mean_skipmissing(X))./std_skipmissing(X);
-
-"""
-    standardize_verbose(X::Array{Float64,1})
-    standardize_verbose(X::JVector)
-
-Standardize data to have mean zero and unit variance.
-
-    standardize_verbose(X::Array{Float64,2})
-    standardize_verbose(X::JArray)
-
-Standardize data to have mean zero and unit variance column wise.
-
-# Output
-- Mean.
-- Standard deviation.
-- Standardized data.
-
-# Examples
-```jldoctest
-julia> standardize_verbose([1.0; 1.5; 2.0; 2.5; 3.0])
-(2.0, 0.7905694150420949, [-1.26491, -0.632456, 0.0, 0.632456, 1.26491])
-
-julia> standardize_verbose([1.0 3.5 1.5 4.0 2.0; 4.5 2.5 5.0 3.0 5.5])
-([2.4; 4.1], [1.29422; 1.29422], [-1.08173 0.849934 … 1.23627 -0.309067; 0.309067 -1.23627 … -0.849934 1.08173])
-```
-"""
-standardize_verbose(X::Array{Float64,1}) = (mean(X), std(X), standardize(X));
-standardize_verbose(X::Array{Float64,2}) = (mean(X,dims=2), std(X,dims=2), standardize(X));
-standardize_verbose(X::JVector) = (mean_skipmissing(X), std_skipmissing(X), standardize(X));
-standardize_verbose(X::JArray) = (mean_skipmissing(X), std_skipmissing(X), standardize(X));
 
 """
     demean(X::Array{Float64,1})
@@ -201,10 +152,10 @@ julia> demean([1.0 3.5 1.5 4.0 2.0; 4.5 2.5 5.0 3.0 5.5])
   0.4  -1.6   0.9  -1.1   1.4
 ```
 """
-demean(X::Array{Float64,1}) = X.-mean(X);
-demean(X::Array{Float64,2}) = X.-mean(X,dims=2);
-demean(X::JVector) = X.-mean_skipmissing(X);
-demean(X::JArray) = X.-mean_skipmissing(X);
+demean(X::Array{Float64,1}) = X .- mean(X);
+demean(X::Array{Float64,2}) = X .- mean(X,dims=2);
+demean(X::JVector) = X .- mean_skipmissing(X);
+demean(X::JArray) = X .- mean_skipmissing(X);
 
 
 #=
@@ -214,8 +165,35 @@ Base: time series
 =#
 
 """
+    interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
+
+Interpolate each series in `Y`, in turn, by replacing missing observations with the sample average of the non-missing values.
+
+# Arguments
+- `Y`: observed measurements (`nxT`)
+- `n` and `T` are the number of series and observations
+
+    interpolate(Y::Array{Float64}, n::Int64, T::Int64)
+
+Return Y.
+
+# Arguments
+- `Y`: observed measurements (`nxT`)
+- `n` and `T` are the number of series and observations
+"""
+function interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
+    data = copy(Y);
+    for i=1:n
+        data[i, ismissing.(Y[i, :])] .= mean_skipmissing(Y[i, :]);
+    end
+    data = data |> Array{Float64};
+    return data;
+end
+
+interpolate(Y::Array{Float64}, n::Int64, T::Int64) = Y;
+
+"""
     lag(X::Array, p::Int64)
-    lag(X::JArray, p::Int64)
 
 Construct the data required to run a standard vector autoregression.
 
@@ -237,23 +215,12 @@ function lag(X::Array, p::Int64)
     return X_t, X_lagged;
 end
 
-function lag(X::JArray, p::Int64)
-
-    # VAR(p) data
-    X_t = X[:, 1+p:end];
-    X_lagged = vcat([X[:, p-j+1:end-j] for j=1:p]...);
-
-    # Return output
-    return X_t, X_lagged;
-end
-
-
 """
-    companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+    companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
 
 Construct the companion form parameters of a VAR(p) with coefficients Ψ and var-cov matrix of the residuals Σ.
 """
-function companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+function companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
 
     # Dimensions
     n = size(Σ,2);
@@ -262,18 +229,18 @@ function companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
     # Companion form VAR(p)
     C = [Ψ; Matrix(I, np_1, np_1) zeros(np_1, n)];
-    V = [Σ zeros(n, np_1); zeros(np_1, n*p)];
+    V = Symmetric([Σ zeros(n, np_1); zeros(np_1, n*p)])::SymMatrix;
 
     # Return output
     return C, V;
 end
 
 """
-    companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+    ext_companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
 
 Construct the companion form parameters of a VAR(p) with coefficients Ψ and var-cov matrix of the residuals Σ. The companion form is extend with additional n entries.
 """
-function ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
+function ext_companion_form(Ψ::Array{Float64,2}, Σ::SymMatrix)
 
     # Dimensions
     n = size(Σ,2);
@@ -282,12 +249,11 @@ function ext_companion_form(Ψ::Array{Float64,2}, Σ::Array{Float64})
 
     # Companion form VAR(p)
     C = [Ψ zeros(n, n); Matrix(I, np, np) zeros(np, n)];
-    V = [Σ zeros(n, np); zeros(np, np+n)];
+    V = Symmetric([Σ zeros(n, np); zeros(np, np+n)])::SymMatrix;
 
     # Return output
     return C, V;
 end
-
 
 #=
 -------------------------------------------------------------------------------------------------------------------------------
