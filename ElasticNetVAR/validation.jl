@@ -217,9 +217,8 @@ function jackknife_err(validation_settings::ValidationSettings, p::Int64, λ::Nu
     # Compute jackknife loss
     verb_message(validation_settings.verb_estim, "jackknife_err > running $samples iterations on $(nworkers()) workers");
 
-    output_fc_err = zeros(2);
     output_fc_err = @sync @distributed (+) for j=1:samples
-        fc_err(validation_settings, p, λ, α, β; jth_jackknife_data=jackknife_data[:,:,j]);
+        fc_err(validation_settings, p, λ, α, β, jth_jackknife_data=jackknife_data[:,:,j]);
     end
 
     # Compute average jackknife loss
