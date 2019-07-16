@@ -11,7 +11,7 @@ module ElasticNetVAR
 	# Custom dependencies
 	const local_path = dirname(@__FILE__);
 	include("$local_path/types.jl");
-    include("$local_path/methods.jl");
+	include("$local_path/methods.jl");
 	include("$local_path/coordinate_descent.jl");
 	include("$local_path/kalman.jl");
 	include("$local_path/ecm.jl");
