@@ -8,9 +8,9 @@ The state space model used below is,
 
 ``Y_{t} = B*X_{t} + e_{t}``
 
-``X_{t} = C*X_{t-1} + u_{t}``
+``X_{t} = C*X_{t-1} + v_{t}``
 
-Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
+Where ``e_{t} ~ N(0, R)`` and ``v_{t} ~ N(0, V)``.
 
 # Arguments
 - `settings`: KalmanSettings struct
@@ -194,9 +194,9 @@ The state space model used below is,
 
 ``Y_{t} = B*X_{t} + e_{t}``
 
-``X_{t} = C*X_{t-1} + u_{t}``
+``X_{t} = C*X_{t-1} + v_{t}``
 
-Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
+Where ``e_{t} ~ N(0, R)`` and ``v_{t} ~ N(0, V)``.
 """
 function kforecast(settings::KalmanSettings, Xt::Union{FloatVector, Nothing}, h::Int64)
 
@@ -246,9 +246,9 @@ The state space model used below is,
 
 ``Y_{t} = B*X_{t} + e_{t}``
 
-``X_{t} = C*X_{t-1} + u_{t}``
+``X_{t} = C*X_{t-1} + v_{t}``
 
-Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
+Where ``e_{t} ~ N(0, R)`` and ``v_{t} ~ N(0, V)``.
 
 # Arguments
 - `settings`: KalmanSettings struct
@@ -306,9 +306,9 @@ The state space model used below is,
 
 ``Y_{t} = B*X_{t} + e_{t}``
 
-``X_{t} = C*X_{t-1} + u_{t}``
+``X_{t} = C*X_{t-1} + v_{t}``
 
-Where ``e_{t} ~ N(0, R)`` and ``u_{t} ~ N(0, V)``.
+Where ``e_{t} ~ N(0, R)`` and ``v_{t} ~ N(0, V)``.
 
 # Arguments
 - `estim_settings`: EstimSettings struct
