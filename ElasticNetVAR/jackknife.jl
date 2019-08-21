@@ -132,7 +132,7 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
     vec_Y = convert(JArray{Float64}, Y[:]);
 
     # Initialise loop (controls)
-    C_nT_d = convert(Int64, no_combinations(nT, d));
+    C_nT_d = no_combinations(nT, d);
     samples = convert(Int64, min(C_nT_d, max_samples));
     zeros_vec = zeros(d);
 

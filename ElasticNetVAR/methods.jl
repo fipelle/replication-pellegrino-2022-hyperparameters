@@ -312,13 +312,13 @@ function rand_without_replacement(nT::Int64, d::Int64)
     # Positional vector
     P = collect(1:nT);
 
-    # Loop over d
+    # Draw without replacement d times
     for i=1:d
         deleteat!(P, findall(P.==rand(P)));
     end
 
     # Return output
-    return P;
+    return setdiff(1:nT, P);
 end
 
 function rand_without_replacement(n::Int64, T::Int64, d::Int64)
@@ -327,10 +327,10 @@ function rand_without_replacement(n::Int64, T::Int64, d::Int64)
     P = collect(1:n*T);
 
     # Full set of coordinates
-    coord = [repeat(1:n, T) kron(1:T, Array{Int64}(ones(n)))];
+    coord = [repeat(1:n, T) kron(1:T, convert(Array{Int64}, ones(n)))];
 
     # Counter
-    coord_counter = Array{Int64}(zeros(T));
+    coord_counter = convert(Array{Int64}, zeros(T));
 
     # Loop over d
     for i=1:d
@@ -339,10 +339,11 @@ function rand_without_replacement(n::Int64, T::Int64, d::Int64)
 
             # New candidate draw
             draw = rand(P);
+            coord_draw = @view coord[draw, :];
 
             # Accept the draw if all observations are not missing for time t = coord[draw, :][2]
-            if coord[draw, :][2] < n-1
-                coord_counter[coord[draw, :][2]] += 1;
+            if coord_counter[coord_draw[2]] < n-1
+                coord_counter[coord_draw[2]] += 1;
 
                 # Draw without replacement
                 deleteat!(P, findall(P.==draw));
@@ -352,5 +353,5 @@ function rand_without_replacement(n::Int64, T::Int64, d::Int64)
     end
 
     # Return output
-    return P;
+    return setdiff(1:n*T, P);
 end
