@@ -24,7 +24,10 @@ function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
     n, T = size(Y);
 
     # Block size
-    block_size = Int64(ceil(subsample*T));
+    block_size = Int64(floor(subsample*T));
+    if block_size == 0
+        error("subsample is too small!");
+    end
 
     # Number of block jackknifes samples - as in Kunsch (1989)
     samples = T-block_size+1;
@@ -36,15 +39,54 @@ function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
     for j=1:samples
 
         # Index of missings
-        indʲ = collect(j:j+block_size-1);
+        ind_j = collect(j:j+block_size-1);
 
         # Block jackknife data
         jackknife_data[:, :, j] = Y;
-        jackknife_data[:, indʲ, j] .= missing;
+        jackknife_data[:, ind_j, j] .= missing;
     end
 
     # Return jackknife_data
     return jackknife_data;
+end
+
+"""
+    objfun_optimal_d(T::Int64, n::Int64)
+
+Select the optimal value for d.
+
+# Arguments
+- `T`: Number of observations
+- `n`: Number of series
+"""
+function optimal_d(T, n)
+    objfun_array = zeros(n*T);
+
+    for d=1:n*T
+        objfun_array[d] = objfun_optimal_d(T, n, d);
+    end
+
+    return argmax(objfun_array);
+end
+
+"""
+    objfun_optimal_d(T::Int64, n::Int64, d::Int64)
+
+Objective function to select the optimal value for d.
+
+# Arguments
+- `T`: Number of observations
+- `n`: Number of series
+- `d`: Candidate d
+"""
+function objfun_optimal_d(T::Int64, n::Int64, d::Int64)
+    fun = no_combinations(n*T, d) - (d>=n).*no_combinations(n*T-n, d-n)*T;
+
+    for i=2:fld(d, n)
+        fun -= (-1^(i-1))*no_combinations(T, i)*no_combinations(n*T-i*n, d-i*n);
+    end
+
+    return fun;
 end
 
 """
@@ -59,71 +101,73 @@ does not alter the data order nor destroy the correlation structure.
 
 # Arguments
 - `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
-- `subsample`: `d` as a percentage of the original sample size. It is bounded between 0 and 1.
-- `max_samples`: if `C(T*n,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples.
+- `subsample`: `d` as a percentage of the original sample size. It is bounded between 0 and 1. If it is NaN it is automatically selected.
+- `max_samples`: if `C(n*T,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples.
 
 # References
 Pellegrino (2019)
 """
 function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samples::Int64)
 
+    # Dimensions
+    n, T = size(Y);
+    nT = n*T;
+
     # Error management
+    if isnan(subsample)
+        subsample = optimal_d(T, n)/nT;
+    end
+
     if subsample <= 0 || subsample >= 1
         error("0 < subsample < 1");
     end
 
-    # Dimensions
-    n, T = size(Y);
-    Tn = T*n;
-
     # d
-    d = Int64(ceil(subsample*Tn));
-    if d <= sqrt(Tn)
-        error("The number of (artificial) missing observations is too small. d must be larger or equal to sqrt(Tn).");
+    d = Int64(floor(subsample*nT));
+    if d == 0
+        error("subsample is too small!");
     end
 
     # Get vec(Y)
-    vec_Y = Y[:] |> JArray{Float64};
+    vec_Y = convert(JArray{Float64}, Y[:]);
 
-    # Initialise ind_missings
-    samples = min(no_combinations(Tn, d), max_samples) |> Int64;
-    ind_missings = zeros(d, samples) |> Array{Int64};
+    # Initialise loop (controls)
+    C_nT_d = convert(Int64, no_combinations(nT, d));
+    samples = convert(Int64, min(C_nT_d, max_samples));
+    zeros_vec = zeros(d);
 
-    # Initialise jackknife_data
+    # Initialise loop (output)
+    ind_missings = Array{Int64}(zeros(d, samples));
     jackknife_data = JArray{Float64,3}(undef, n, T, samples);
 
     # Loop over j=1, ..., samples
     for j=1:samples
 
+        # First draw
         if j == 1
+            if samples == C_nT_d
+                ind_missings[:,j] = rand_without_replacement(nT, d);
+            else
+                ind_missings[:,j] = rand_without_replacement(n, T, d);
+            end
 
-            # Get index
-            indʲ = collect(1:Tn);
-            rand_without_replacement!(indʲ, Tn-d);
-
-            # Store index
-            ind_missings[:,j] = indʲ;
-
-        elseif j > 1
-
-            # Iterates until ind_missings[:,j] is neither a vector of zeros, nor already included in ind_missings
-            while ind_missings[:,j] == zeros(d) || is_vector_in_matrix(ind_missings[:,j], ind_missings[:, 1:j-1])
-
-                # Get index
-                indʲ = collect(1:Tn);
-                rand_without_replacement!(indʲ, Tn-d);
-
-                # Store index
-                ind_missings[:,j] = indʲ;
+        # Iterates until ind_missings[:,j] is neither a vector of zeros, nor already included in ind_missings
+        else
+            while ind_missings[:,j] == zeros_vec || is_vector_in_matrix(ind_missings[:,j], ind_missings[:, 1:j-1])
+                if samples == C_nT_d
+                    ind_missings[:,j] = rand_without_replacement(nT, d);
+                else
+                    ind_missings[:,j] = rand_without_replacement(n, T, d);
+                end
             end
         end
 
         # Add (artificial) missing observations
-        vec_Yʲ = copy(vec_Y);
-        vec_Yʲ[ind_missings[:,j]] .= missing;
+        vec_Y_j = copy(vec_Y);
+        vec_Y_j[ind_missings[:,j]] .= missing;
 
         # Store data
-        jackknife_data[:, :, j] = reshape(vec_Yʲ, n, T);
+        jackknife_data[:, :, j] = reshape(vec_Y_j, n, T);
     end
 
     # Return jackknife_data
