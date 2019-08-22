@@ -243,7 +243,7 @@ The arguments are two dimensional arrays representing the bounds of the grid for
 - `verb_estim`: Verbose output for the estimation algorithm (default: true)
 - `t0`: weight associated to the LASSO component of the elastic-net penalty
 - `subsample`: Number of observations removed in the subsampling process, as a percentage of the original sample size. It is bounded between 0 and 1.
-- `max_samples`: if `C(T*n,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples. (used only for the artificial jackknife)
+- `max_samples`: if `C(n*T,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples. (used only for the artificial jackknife)
 - `log_folder_path`: folder to store the log file
 """
 struct ValidationSettings

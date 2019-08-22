@@ -20,11 +20,11 @@ module ElasticNetVAR
 
 	# Export
 	export JVector, JArray, ImmutableKalmanSettings, KalmanStatus, EstimSettings, ValidationSettings, HyperGrid;
-	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, sym, sym_inv, demean, lag, companion_form, ext_companion_form, no_combinations, rand_without_replacement!;
+	export mean_skipmissing, std_skipmissing, is_vector_in_matrix, sym, sym_inv, demean, lag, companion_form, ext_companion_form, no_combinations, rand_without_replacement;
 	export kalman;
 	export kfilter!, kforecast, ksmoother;
 	export coordinate_descent, ecm;
-	export coordinate_descent_new, build_Γ;
+	export coordinate_descent, build_Γ;
 	export block_jackknife, artificial_jackknife;
 	export select_hyperparameters, fc_err, jackknife_err;
 end

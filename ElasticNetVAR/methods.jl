@@ -96,7 +96,7 @@ Check whether the vector `vect` is included in the matrix `matr`.
 julia> is_vector_in_matrix([1;2], [1 2; 2 3])
 true
 """
-is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix) = sum(sum(vect.==matr, dims=1).==length(vect)) > 0;
+is_vector_in_matrix(vect::AbstractVector, matr::AbstractMatrix) = sum(sum(vect .== matr, dims=1) .== length(vect)) > 0;
 
 """
     isconverged(new::Float64, old::Float64, tol::Float64, ε::Float64, increasing::Bool)
@@ -186,7 +186,7 @@ function interpolate(Y::JArray{Float64}, n::Int64, T::Int64)
     for i=1:n
         data[i, ismissing.(Y[i, :])] .= mean_skipmissing(Y[i, :]);
     end
-    data = data |> Array{Float64};
+    data = convert(Array{Float64}, data);
     return data;
 end
 
@@ -275,36 +275,83 @@ julia> no_combinations(1000000,100000)
 no_combinations(n::Int64, k::Int64) = factorial(big(n))/(factorial(big(k))*factorial(big(n-k)));
 
 """
-    rand_without_replacement!(P::Array{Int64,1}, d::Int64)
+    rand_without_replacement(nT::Int64, d::Int64)
 
 Draw `length(P)-d` elements from the positional vector `P` without replacement.
-`P` is transformed into the output vector in the process and thus permanently changed.
+`P` is permanently changed in the process.
+
+rand_without_replacement(n::Int64, T::Int64, d::Int64)
+
+Draw `length(P)-d` elements from the positional vector `P` without replacement.
+In the sampling process, no more than n-1 elements are removed for each point in time.
+`P` is permanently changed in the process.
 
 # Examples
 ```jldoctest
-julia> P=collect(1:20);
-julia> rand_without_replacement!(P, 5);
-julia> P
+julia> rand_without_replacement(20, 5)
 15-element Array{Int64,1}:
   1
   2
   3
   5
-  6
   7
   8
-  9
  10
  11
  13
  14
  16
+ 17
+ 18
  19
  20
 ```
 """
-function rand_without_replacement!(P::Array{Int64,1}, d::Int64)
+function rand_without_replacement(nT::Int64, d::Int64)
+
+    # Positional vector
+    P = collect(1:nT);
+
+    # Draw without replacement d times
     for i=1:d
         deleteat!(P, findall(P.==rand(P)));
     end
+
+    # Return output
+    return setdiff(1:nT, P);
+end
+
+function rand_without_replacement(n::Int64, T::Int64, d::Int64)
+
+    # Positional vector
+    P = collect(1:n*T);
+
+    # Full set of coordinates
+    coord = [repeat(1:n, T) kron(1:T, convert(Array{Int64}, ones(n)))];
+
+    # Counter
+    coord_counter = convert(Array{Int64}, zeros(T));
+
+    # Loop over d
+    for i=1:d
+
+        while true
+
+            # New candidate draw
+            draw = rand(P);
+            coord_draw = @view coord[draw, :];
+
+            # Accept the draw if all observations are not missing for time t = coord[draw, :][2]
+            if coord_counter[coord_draw[2]] < n-1
+                coord_counter[coord_draw[2]] += 1;
+
+                # Draw without replacement
+                deleteat!(P, findall(P.==draw));
+                break;
+            end
+        end
+    end
+
+    # Return output
+    return setdiff(1:n*T, P);
 end
