@@ -115,17 +115,25 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
 
     # Error management
     if isnan(subsample)
-        subsample = optimal_d(T, n)/nT;
-    end
+        d = optimal_d(T, n);
 
-    if subsample <= 0 || subsample >= 1
+    # Error management
+    elseif subsample <= 0 || subsample >= 1
         error("0 < subsample < 1");
+
+    # Set d using subsample
+    else
+        d = Int64(floor(subsample*nT));
     end
 
-    # d
-    d = Int64(floor(subsample*nT));
+    # Error management
     if d == 0
         error("subsample is too small!");
+    end
+
+    # Warning
+    if d/nT > 0.5
+        @warn("this version of the code might be unstable for `subsample` larger than 0.5!");
     end
 
     # Get vec(Y)

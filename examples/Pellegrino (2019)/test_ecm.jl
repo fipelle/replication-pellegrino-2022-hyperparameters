@@ -17,7 +17,7 @@ const SymMatrix    = Symmetric{Float64,Array{Float64,2}};
 const DiagMatrix   = Diagonal{Float64,Array{Float64,1}};
 
 p_grid=[2, 4]; λ_grid=[1e-4, 10]; α_grid=[0,1]; β_grid=[1,10];
-vs = ValidationSettings(4, Y, t0=100, subsample=0.1, max_samples=5, log_folder_path=".");
+vs = ValidationSettings(4, Y, t0=100, subsample=NaN, max_samples=5, log_folder_path=".");
 hg = HyperGrid(p_grid, λ_grid, α_grid, β_grid, 5);
 
 #Random.seed!(1);
