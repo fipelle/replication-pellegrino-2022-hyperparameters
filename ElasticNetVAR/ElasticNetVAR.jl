@@ -25,6 +25,6 @@ module ElasticNetVAR
 	export kfilter!, kforecast, ksmoother;
 	export coordinate_descent, ecm;
 	export coordinate_descent, build_Γ;
-	export block_jackknife, artificial_jackknife;
+	export block_jackknife, artificial_jackknife, optimal_d;
 	export select_hyperparameters, fc_err, jackknife_err;
 end

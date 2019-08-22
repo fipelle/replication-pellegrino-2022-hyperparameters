@@ -56,7 +56,7 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
 
         # Update log
         if validation_settings.verb == true
-            message = "select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
+            message = "select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws)), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
             println(message);
             if ~isnothing(validation_settings.log_folder_path)
                 open("$(validation_settings.log_folder_path)/status.txt", "a") do io
