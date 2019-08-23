@@ -17,7 +17,7 @@ isnothing(::Nothing) = true;
 
 @info `message` if `verb` is true.
 """
-verb_message(verb::Bool, message::String) = verb ? @info message : nothing;
+verb_message(verb::Bool, message::String) = verb ? @info(message) : nothing;
 
 """
     check_bounds(X::Number, LB::Number, UB::Number)

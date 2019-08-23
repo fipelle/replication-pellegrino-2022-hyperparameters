@@ -44,7 +44,7 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
 
     if ~isnothing(validation_settings.log_folder_path)
         io = open("$(validation_settings.log_folder_path)/status.txt", "w+");
-        global_logger(SimpleLogger(io));
+        global_logger(ConsoleLogger(io));
     end
 
     # Generate partitions for the block jackknife out-of-sample
