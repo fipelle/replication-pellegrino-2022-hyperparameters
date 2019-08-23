@@ -48,6 +48,15 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
         end
     end
 
+    # Generate partitions for the block jackknife out-of-sample
+    if validation_settings.err_type == 3
+        jackknife_data = block_jackknife(validation_settings.Y, validation_settings.subsample);
+
+    # Generate partitions for the artificial jackknife
+    elseif validation_settings.err_type == 4
+        jackknife_data = artificial_jackknife(validation_settings.Y, validation_settings.subsample, validation_settings.max_samples);
+    end
+
     for iter=1:γ_grid.draws
 
         # Retrieve candidate hyperparameters
@@ -74,7 +83,7 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
 
         # Jackknife out-of-sample
         else
-            errors[iter] = jackknife_err(validation_settings, p, λ, α, β);
+            errors[iter] = jackknife_err(validation_settings, jackknife_data, p, λ, α, β);
         end
     end
 
@@ -183,12 +192,13 @@ function compute_loss(std_resid::AbstractArray{Union{Float64, Missing}})
 end
 
 """
-    jackknife_err(validation_settings::ValidationSettings, p::Int64, λ::Number, α::Number, β::Number)
+    jackknife_err(validation_settings::ValidationSettings, jackknife_data::JArray{Float64, 3}, p::Int64, λ::Number, α::Number, β::Number)
 
 Return the jackknife out-of-sample error.
 
 # Arguments
 - `validation_settings`: ValidationSettings struct
+- `jackknife_data`: jackknife partitions
 - `p`: (candidate) number of lags in the vector autoregression
 - `λ`: (candidate) overall shrinkage hyper-parameter for the elastic-net penalty
 - `α`: (candidate) weight associated to the LASSO component of the elastic-net penalty
@@ -197,17 +207,10 @@ Return the jackknife out-of-sample error.
 # References
 Pellegrino (2019)
 """
-function jackknife_err(validation_settings::ValidationSettings, p::Int64, λ::Number, α::Number, β::Number)
+function jackknife_err(validation_settings::ValidationSettings, jackknife_data::JArray{Float64, 3}, p::Int64, λ::Number, α::Number, β::Number)
 
-    # Block jackknife
-    if validation_settings.err_type == 3
-        jackknife_data = block_jackknife(validation_settings.Y, validation_settings.subsample);
-
-    # Artificial jackknife
-    elseif validation_settings.err_type == 4
-        jackknife_data = artificial_jackknife(validation_settings.Y, validation_settings.subsample, validation_settings.max_samples);
-
-    else
+    # Error management
+    if validation_settings.err_type <= 2
         error("Wrong err_type for jackknife_err!");
     end
 
