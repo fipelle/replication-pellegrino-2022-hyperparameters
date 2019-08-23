@@ -128,7 +128,7 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
 
     # Warning
     if subsample > 0.5
-        @warn("this algorithm might be unstable for `subsample` larger than 0.5!");
+        @warn "this algorithm might be unstable for `subsample` larger than 0.5!";
     end
 
     # Get vec(Y)

@@ -3,10 +3,9 @@ __precompile__()
 module ElasticNetVAR
 
 	# Libraries
-	using LinearAlgebra
-	using Statistics;
-	using Distributions;
 	using Distributed;
+	using Dates, Logging;
+	using LinearAlgebra, Distributions, Statistics;
 
 	# Custom dependencies
 	const local_path = dirname(@__FILE__);

@@ -43,9 +43,8 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
     end
 
     if ~isnothing(validation_settings.log_folder_path)
-        open("$(validation_settings.log_folder_path)/status.txt", "w") do io
-            write(io, "")
-        end
+        io = open("$(validation_settings.log_folder_path)/status.txt", "w+");
+        global_logger(SimpleLogger(io));
     end
 
     # Generate partitions for the block jackknife out-of-sample
@@ -65,12 +64,9 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
 
         # Update log
         if validation_settings.verb == true
-            message = "select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws)), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
-            println(message);
+            @info "$(now()) select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws)), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
             if ~isnothing(validation_settings.log_folder_path)
-                open("$(validation_settings.log_folder_path)/status.txt", "a") do io
-                    write(io, "$message\n")
-                end
+                flush(io);
             end
         end
 
@@ -86,8 +82,6 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
             errors[iter] = jackknife_err(validation_settings, jackknife_data, p, λ, α, β);
         end
     end
-
-    verb_message(validation_settings.verb, "");
 
     # Return output
     return candidates, errors;
@@ -230,8 +224,6 @@ function jackknife_err(validation_settings::ValidationSettings, jackknife_data::
         error("All samples are inactive! Check the initial settings or try a different random seed.");
     end
     loss *= 1/(samples-inactive_samples);
-
-    verb_message(validation_settings.verb_estim, "");
 
     # Return output
     return loss;

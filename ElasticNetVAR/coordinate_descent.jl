@@ -57,7 +57,7 @@ function coordinate_descent(estim_settings::EstimSettings)
             # Stop when the algorithm converges
             if iter > 1
                 if isconverged(objfun_new, objfun_old, estim_settings.tol, estim_settings.ε, false)
-                    verb_message(estim_settings.verb, "coordinate_descent ($i-th row) > converged!");
+                    verb_message(estim_settings.verb, "coordinate_descent ($i-th row) > converged!\n");
                     break;
                 end
             end
@@ -66,9 +66,6 @@ function coordinate_descent(estim_settings::EstimSettings)
             objfun_old = copy(objfun_new);
         end
     end
-
-    # Print empty line
-    verb_message(estim_settings.verb, "");
 
     # Estimate var-cov matrix of the residuals
     V = Y - Ψ*Y_lagged;

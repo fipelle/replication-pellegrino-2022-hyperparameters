@@ -12,7 +12,7 @@ data = permutedims(data);
 n, T = size(data);
 
 # Select optimal d
-@info("Running optimal_d(n, T)")
+@info "Running optimal_d(n, T)";
 d = optimal_d(n, T);
 
 # Set options for the selection problem
@@ -22,7 +22,7 @@ hg = HyperGrid(p_grid, λ_grid, α_grid, β_grid, 1000);
 
 # Run algorithm
 Random.seed!(1);
-@info("Running select_hyperparameters(vs, hg)")
+@info "Running select_hyperparameters(vs, hg)";
 candidates, errors = select_hyperparameters(vs, hg);
 
 # Save to file
