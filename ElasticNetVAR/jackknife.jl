@@ -15,10 +15,8 @@ Kunsch (1989) and Pellegrino (2019)
 """
 function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 
-    # Error management
-    if subsample <= 0 || subsample >= 1
-        error("0 < subsample < 1");
-    end
+    # Check inputs
+    check_bounds(subsample, 0, 1);
 
     # Dimensions
     n, T = size(Y);
@@ -113,10 +111,8 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
     n, T = size(Y);
     nT = n*T;
 
-    # Error management
-    if subsample <= 0 || subsample >= 1
-        error("0 < subsample < 1");
-    end
+    # Check inputs
+    check_bounds(subsample, 0, 1);
 
     # Set d using subsample
     d = Int64(ceil(subsample*nT));
