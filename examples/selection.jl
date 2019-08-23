@@ -1,6 +1,7 @@
 # Libraries
-include("./../ElasticNetVAR/ElasticNetVAR.jl");
-using Main.ElasticNetVAR;
+using Distributed;
+@everywhere include("./../ElasticNetVAR/ElasticNetVAR.jl");
+@everywhere using Main.ElasticNetVAR;
 using Random;
 using FileIO, XLSX, DataFrames, JLD2;
 
