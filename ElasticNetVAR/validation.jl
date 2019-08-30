@@ -146,37 +146,37 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, Î»::Number, Î
     w = compute_loss_weights(data_presample, n, validation_settings.standardise_error, validation_settings.weights);
 
     # Weighted error
-    std_resid = @. w*(forecast - Y_output)^2;
+    weighted_resid = @. w*(forecast - Y_output)^2;
 
     # In-sample error
     if validation_settings.err_type == 1
-        return compute_loss(std_resid);
+        return compute_loss(weighted_resid);
 
     # Out-of-sample error
     else
-        std_resid_oos = @view std_resid[:, t0+1:end];
-        return compute_loss(std_resid_oos);
+        weighted_resid_oos = @view weighted_resid[:, t0+1:end];
+        return compute_loss(weighted_resid_oos);
     end
 end
 
 """
-    compute_loss(std_resid::AbstractArray{Float64})
-    compute_loss(std_resid::AbstractArray{Missing})
-    compute_loss(std_resid::AbstractArray{Union{Float64, Missing}})
+    compute_loss(weighted_resid::AbstractArray{Float64})
+    compute_loss(weighted_resid::AbstractArray{Missing})
+    compute_loss(weighted_resid::AbstractArray{Union{Float64, Missing}})
 
 Compute loss function.
 """
-compute_loss(std_resid::AbstractArray{Float64}) = [mean(mean(std_resid, dims=1), dims=2)[1], 0.0];
-compute_loss(std_resid::AbstractArray{Missing}) = [0.0, 1.0];
-function compute_loss(std_resid::AbstractArray{Union{Float64, Missing}})
+compute_loss(weighted_resid::AbstractArray{Float64}) = [mean(mean(weighted_resid, dims=1), dims=2)[1], 0.0];
+compute_loss(weighted_resid::AbstractArray{Missing}) = [0.0, 1.0];
+function compute_loss(weighted_resid::AbstractArray{Union{Float64, Missing}})
     loss = 0.0;
     inactive_periods = 0.0;
-    T = size(std_resid,2);
+    T = size(weighted_resid,2);
 
     for t=1:T
-        std_resid_t = @view std_resid[:,t];
-        if sum(.~ismissing.(std_resid_t)) > 0
-            loss += mean_skipmissing(std_resid_t);
+        weighted_resid_t = @view weighted_resid[:,t];
+        if sum(.~ismissing.(weighted_resid_t)) > 0
+            loss += mean_skipmissing(weighted_resid_t);
         else
             inactive_periods += 1.0;
         end
