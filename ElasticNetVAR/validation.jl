@@ -124,7 +124,6 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
     # Data
     data_presample = @view data[:, 1:t0];
     μ = mean_skipmissing(data_presample);
-    σ = std_skipmissing(data_presample);
     Y = @. data_presample - μ;
     Y_output = @. data - μ;
 
@@ -142,7 +141,12 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
 
     # Residuals
     forecast  = hcat(status.history_X_prior...)[1:validation_settings.n, :];
-    std_resid = @. ((forecast - Y_output)/σ)^2;
+
+    # Compute weights
+    w = compute_loss_weights(data_presample, n, validation_settings.standardise_error, validation_settings.weights);
+
+    # Weighted error
+    std_resid = @. w*(forecast - Y_output)^2;
 
     # In-sample error
     if validation_settings.err_type == 1
@@ -228,3 +232,6 @@ function jackknife_err(validation_settings::ValidationSettings, jackknife_data::
     # Return output
     return loss;
 end
+
+compute_loss_weights(data_presample::Union{FloatArray, JArray{Float64}}, n::Int64, standardise_error::Bool, weights::Nothing) = standardise_error ? std_skipmissing(data_presample).^2 : ones(n);
+compute_loss_weights(data_presample::Union{FloatArray, JArray{Float64}}, n::Int64, standardise_error::Bool, weights::FloatVector) = standardise_error ? std_skipmissing(data_presample).^2 : weights;
