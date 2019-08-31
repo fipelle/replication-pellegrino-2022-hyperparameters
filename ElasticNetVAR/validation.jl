@@ -143,7 +143,7 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, Î»::Number, Î
     forecast  = hcat(status.history_X_prior...)[1:validation_settings.n, :];
 
     # Compute weights
-    w = compute_loss_weights(data_presample, n, validation_settings.standardise_error, validation_settings.weights);
+    w = compute_loss_weights(data_presample, validation_settings.n, validation_settings.standardise_error, validation_settings.weights);
 
     # Weighted error
     weighted_resid = @. w*(forecast - Y_output)^2;
