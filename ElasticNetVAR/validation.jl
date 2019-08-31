@@ -160,13 +160,13 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, Î»::Number, Î
 end
 
 """
-    compute_loss_weights(data_presample::Union{FloatArray, JArray{Float64}}, n::Int64, standardise_error::Bool, weights::Nothing)
-    compute_loss_weights(data_presample::Union{FloatArray, JArray{Float64}}, n::Int64, standardise_error::Bool, weights::FloatVector)
+    compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::Nothing)
+    compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::FloatVector)
 
 Compute weights for the forecast error.
 """
-compute_loss_weights(data_presample::Union{FloatArray, JArray{Float64}}, n::Int64, standardise_error::Bool, weights::Nothing) = standardise_error ? std_skipmissing(data_presample).^2 : ones(n);
-compute_loss_weights(data_presample::Union{FloatArray, JArray{Float64}}, n::Int64, standardise_error::Bool, weights::FloatVector) = standardise_error ? std_skipmissing(data_presample).^2 : weights;
+compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::Nothing) = standardise_error ? std_skipmissing(data_presample).^2 : ones(n);
+compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::FloatVector) = standardise_error ? std_skipmissing(data_presample).^2 : weights;
 
 """
     compute_loss(weighted_resid::AbstractArray{Float64})
