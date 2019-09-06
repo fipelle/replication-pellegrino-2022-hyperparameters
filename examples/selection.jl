@@ -3,7 +3,7 @@ using Distributed;
 @everywhere include("./../ElasticNetVAR/ElasticNetVAR.jl");
 @everywhere using Main.ElasticNetVAR;
 using Random;
-using FileIO, XLSX, DataFrames, JLD2;
+using FileIO, XLSX, DataFrames, BSON;
 
 # Load data
 data_raw = DataFrame(XLSX.readtable("./data/data.xlsx", "weekly_returns")...);
@@ -36,7 +36,7 @@ Random.seed!(1);
 candidates, errors = select_hyperparameters(vs, hg);
 
 # Save to file
-save("./res.jld2", Dict("data" => data,
+save("./res.bson", Dict("data" => data,
                         "date" => date,
                         "end_ps" => end_ps,
                         "end_vs" => end_vs,
