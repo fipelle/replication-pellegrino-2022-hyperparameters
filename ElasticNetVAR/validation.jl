@@ -70,16 +70,47 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
             end
         end
 
-        # In-sample or standard out-of-sample
-        if validation_settings.err_type <= 2
-            errors[iter], inactive_sample = fc_err(validation_settings, p, λ, α, β);
-            if inactive_sample == 1
-                error("The validation sample is a matrix of missings!");
+        #=
+        Note that:
+        - For some extreme candidate values or validation_settings.subsample the estimation of the parameters could be problematic. In the worse case, this gives a DomainError.
+        - Generally, this happens when there are many consecutive missing values in the data (either generated via jackknife or real).
+        - This event is unlikely and - in my tests - visible with extreme settings of the block jackknife only.
+
+        The try-catch statement below handles this problem by skipping the candidate values that generate model instability.
+        =#
+
+        try
+
+            # In-sample or standard out-of-sample
+            if validation_settings.err_type <= 2
+                errors[iter], inactive_sample = fc_err(validation_settings, p, λ, α, β);
+                if inactive_sample == 1
+                    error("The validation sample is a matrix of missings!");
+                end
+
+            # Jackknife out-of-sample
+            else
+                errors[iter] = jackknife_err(validation_settings, jackknife_data, p, λ, α, β);
             end
 
-        # Jackknife out-of-sample
-        else
-            errors[iter] = jackknife_err(validation_settings, jackknife_data, p, λ, α, β);
+        catch error_iter
+
+            # Update log
+            @error "$(round(now(), Dates.Second(1))) $(error_iter.msg)";
+
+            # Collect stacktrace
+            error_stacktrace = stacktrace(catch_backtrace);
+
+            # The instability pops up in the update_loglik! function
+            error_info_1 = occursin("logdet", "$error_stacktrace");
+            error_info_2 = occursin("update_loglik!", "$error_stacktrace");
+            if isa(error_iter, DomainError) && error_info_1 && error_info_2
+                errors[iter] = Inf;
+
+            # Any other error
+            else
+                rethrow(error_iter);
+            end
         end
     end
 
