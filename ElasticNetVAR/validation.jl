@@ -99,7 +99,7 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
             @error "$(round(now(), Dates.Second(1))) $(error_iter.msg)";
 
             # Collect stacktrace
-            error_stacktrace = stacktrace(catch_backtrace);
+            error_stacktrace = stacktrace(catch_backtrace());
 
             # The instability pops up in the update_loglik! function
             error_info_1 = occursin("logdet", "$error_stacktrace");
