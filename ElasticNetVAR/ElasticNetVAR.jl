@@ -3,10 +3,9 @@ __precompile__()
 module ElasticNetVAR
 
 	# Libraries
-	using LinearAlgebra
-	using Statistics;
-	using Distributions;
 	using Distributed;
+	using Dates, Logging;
+	using LinearAlgebra, Distributions, Statistics;
 
 	# Custom dependencies
 	const local_path = dirname(@__FILE__);
@@ -25,6 +24,6 @@ module ElasticNetVAR
 	export kfilter!, kforecast, ksmoother;
 	export coordinate_descent, ecm;
 	export coordinate_descent, build_Γ;
-	export block_jackknife, artificial_jackknife;
+	export block_jackknife, artificial_jackknife, optimal_d;
 	export select_hyperparameters, fc_err, jackknife_err;
 end

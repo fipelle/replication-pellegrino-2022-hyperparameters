@@ -43,9 +43,17 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
     end
 
     if ~isnothing(validation_settings.log_folder_path)
-        open("$(validation_settings.log_folder_path)/status.txt", "w") do io
-            write(io, "")
-        end
+        io = open("$(validation_settings.log_folder_path)/status.txt", "w+");
+        global_logger(ConsoleLogger(io));
+    end
+
+    # Generate partitions for the block jackknife out-of-sample
+    if validation_settings.err_type == 3
+        jackknife_data = block_jackknife(validation_settings.Y, validation_settings.subsample);
+
+    # Generate partitions for the artificial jackknife
+    elseif validation_settings.err_type == 4
+        jackknife_data = artificial_jackknife(validation_settings.Y, validation_settings.subsample, validation_settings.max_samples);
     end
 
     for iter=1:γ_grid.draws
@@ -56,29 +64,55 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
 
         # Update log
         if validation_settings.verb == true
-            message = "select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
-            println(message);
+            @info "$(round(now(), Dates.Second(1))) select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws)), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
             if ~isnothing(validation_settings.log_folder_path)
-                open("$(validation_settings.log_folder_path)/status.txt", "a") do io
-                    write(io, "$message\n")
-                end
+                flush(io);
             end
         end
 
-        # In-sample or standard out-of-sample
-        if validation_settings.err_type <= 2
-            errors[iter], inactive_sample = fc_err(validation_settings, p, λ, α, β);
-            if inactive_sample == 1
-                error("The validation sample is a matrix of missings!");
+        #=
+        Note that:
+        - For some extreme candidate values or validation_settings.subsample the estimation of the parameters could be problematic. In the worse case, this gives a DomainError.
+        - Generally, this happens when there are many consecutive missing values in the data (either generated via jackknife or real).
+        - This event is unlikely and - in my tests - visible with extreme settings of the block jackknife only.
+
+        The try-catch statement below handles this problem by skipping the candidate values that generate model instability.
+        =#
+
+        try
+
+            # In-sample or standard out-of-sample
+            if validation_settings.err_type <= 2
+                errors[iter], inactive_sample = fc_err(validation_settings, p, λ, α, β);
+                if inactive_sample == 1
+                    error("The validation sample is a matrix of missings!");
+                end
+
+            # Jackknife out-of-sample
+            else
+                errors[iter] = jackknife_err(validation_settings, jackknife_data, p, λ, α, β);
             end
 
-        # Jackknife out-of-sample
-        else
-            errors[iter] = jackknife_err(validation_settings, p, λ, α, β);
+        catch error_iter
+
+            # Update log
+            @error "$(round(now(), Dates.Second(1))) $(error_iter.msg)";
+
+            # Collect stacktrace
+            error_stacktrace = stacktrace(catch_backtrace);
+
+            # The instability pops up in the update_loglik! function
+            error_info_1 = occursin("logdet", "$error_stacktrace");
+            error_info_2 = occursin("update_loglik!", "$error_stacktrace");
+            if isa(error_iter, DomainError) && error_info_1 && error_info_2
+                errors[iter] = Inf;
+
+            # Any other error
+            else
+                rethrow(error_iter);
+            end
         end
     end
-
-    verb_message(validation_settings.verb, "");
 
     # Return output
     return candidates, errors;
@@ -121,7 +155,6 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
     # Data
     data_presample = @view data[:, 1:t0];
     μ = mean_skipmissing(data_presample);
-    σ = std_skipmissing(data_presample);
     Y = @. data_presample - μ;
     Y_output = @. data - μ;
 
@@ -139,37 +172,51 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
 
     # Residuals
     forecast  = hcat(status.history_X_prior...)[1:validation_settings.n, :];
-    std_resid = @. ((forecast - Y_output)/σ)^2;
+
+    # Compute weights
+    w = compute_loss_weights(data_presample, validation_settings.n, validation_settings.standardise_error, validation_settings.weights);
+
+    # Weighted error
+    weighted_resid = @. w*(forecast - Y_output)^2;
 
     # In-sample error
     if validation_settings.err_type == 1
-        return compute_loss(std_resid);
+        return compute_loss(weighted_resid);
 
     # Out-of-sample error
     else
-        std_resid_oos = @view std_resid[:, t0+1:end];
-        return compute_loss(std_resid_oos);
+        weighted_resid_oos = @view weighted_resid[:, t0+1:end];
+        return compute_loss(weighted_resid_oos);
     end
 end
 
 """
-    compute_loss(std_resid::AbstractArray{Float64})
-    compute_loss(std_resid::AbstractArray{Missing})
-    compute_loss(std_resid::AbstractArray{Union{Float64, Missing}})
+    compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::Nothing)
+    compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::FloatVector)
+
+Compute weights for the forecast error.
+"""
+compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::Nothing) = standardise_error ? std_skipmissing(data_presample).^2 : ones(n);
+compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::FloatVector) = standardise_error ? std_skipmissing(data_presample).^2 : weights;
+
+"""
+    compute_loss(weighted_resid::AbstractArray{Float64})
+    compute_loss(weighted_resid::AbstractArray{Missing})
+    compute_loss(weighted_resid::AbstractArray{Union{Float64, Missing}})
 
 Compute loss function.
 """
-compute_loss(std_resid::AbstractArray{Float64}) = [mean(mean(std_resid, dims=1), dims=2)[1], 0.0];
-compute_loss(std_resid::AbstractArray{Missing}) = [0.0, 1.0];
-function compute_loss(std_resid::AbstractArray{Union{Float64, Missing}})
+compute_loss(weighted_resid::AbstractArray{Float64}) = [mean(mean(weighted_resid, dims=1), dims=2)[1], 0.0];
+compute_loss(weighted_resid::AbstractArray{Missing}) = [0.0, 1.0];
+function compute_loss(weighted_resid::AbstractArray{Union{Float64, Missing}})
     loss = 0.0;
     inactive_periods = 0.0;
-    T = size(std_resid,2);
+    T = size(weighted_resid,2);
 
     for t=1:T
-        std_resid_t = @view std_resid[:,t];
-        if sum(.~ismissing.(std_resid_t)) > 0
-            loss += mean_skipmissing(std_resid_t);
+        weighted_resid_t = @view weighted_resid[:,t];
+        if sum(.~ismissing.(weighted_resid_t)) > 0
+            loss += mean_skipmissing(weighted_resid_t);
         else
             inactive_periods += 1.0;
         end
@@ -183,12 +230,13 @@ function compute_loss(std_resid::AbstractArray{Union{Float64, Missing}})
 end
 
 """
-    jackknife_err(validation_settings::ValidationSettings, p::Int64, λ::Number, α::Number, β::Number)
+    jackknife_err(validation_settings::ValidationSettings, jackknife_data::JArray{Float64, 3}, p::Int64, λ::Number, α::Number, β::Number)
 
 Return the jackknife out-of-sample error.
 
 # Arguments
 - `validation_settings`: ValidationSettings struct
+- `jackknife_data`: jackknife partitions
 - `p`: (candidate) number of lags in the vector autoregression
 - `λ`: (candidate) overall shrinkage hyper-parameter for the elastic-net penalty
 - `α`: (candidate) weight associated to the LASSO component of the elastic-net penalty
@@ -197,17 +245,10 @@ Return the jackknife out-of-sample error.
 # References
 Pellegrino (2019)
 """
-function jackknife_err(validation_settings::ValidationSettings, p::Int64, λ::Number, α::Number, β::Number)
+function jackknife_err(validation_settings::ValidationSettings, jackknife_data::JArray{Float64, 3}, p::Int64, λ::Number, α::Number, β::Number)
 
-    # Block jackknife
-    if validation_settings.err_type == 3
-        jackknife_data = block_jackknife(validation_settings.Y, validation_settings.subsample);
-
-    # Artificial jackknife
-    elseif validation_settings.err_type == 4
-        jackknife_data = artificial_jackknife(validation_settings.Y, validation_settings.subsample, validation_settings.max_samples);
-
-    else
+    # Error management
+    if validation_settings.err_type <= 2
         error("Wrong err_type for jackknife_err!");
     end
 
@@ -227,8 +268,6 @@ function jackknife_err(validation_settings::ValidationSettings, p::Int64, λ::Nu
         error("All samples are inactive! Check the initial settings or try a different random seed.");
     end
     loss *= 1/(samples-inactive_samples);
-
-    verb_message(validation_settings.verb_estim, "");
 
     # Return output
     return loss;

@@ -15,16 +15,14 @@ Kunsch (1989) and Pellegrino (2019)
 """
 function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 
-    # Error management
-    if subsample <= 0 || subsample >= 1
-        error("0 < subsample < 1");
-    end
+    # Check inputs
+    check_bounds(subsample, 0, 1);
 
     # Dimensions
     n, T = size(Y);
 
     # Block size
-    block_size = Int64(floor(subsample*T));
+    block_size = Int64(ceil(subsample*T));
     if block_size == 0
         error("subsample is too small!");
     end
@@ -51,35 +49,35 @@ function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 end
 
 """
-    objfun_optimal_d(T::Int64, n::Int64)
+    objfun_optimal_d(n::Int64, T::Int64)
 
 Select the optimal value for d.
 
 # Arguments
-- `T`: Number of observations
 - `n`: Number of series
+- `T`: Number of observations
 """
-function optimal_d(T, n)
+function optimal_d(n, T)
     objfun_array = zeros(n*T);
 
-    for d=1:n*T
-        objfun_array[d] = objfun_optimal_d(T, n, d);
+    for d=1:fld(n*T,2)
+        objfun_array[d] = objfun_optimal_d(n, T, d);
     end
 
     return argmax(objfun_array);
 end
 
 """
-    objfun_optimal_d(T::Int64, n::Int64, d::Int64)
+    objfun_optimal_d(n::Int64, T::Int64, d::Int64)
 
 Objective function to select the optimal value for d.
 
 # Arguments
-- `T`: Number of observations
 - `n`: Number of series
+- `T`: Number of observations
 - `d`: Candidate d
 """
-function objfun_optimal_d(T::Int64, n::Int64, d::Int64)
+function objfun_optimal_d(n::Int64, T::Int64, d::Int64)
     fun = no_combinations(n*T, d) - (d>=n).*no_combinations(n*T-n, d-n)*T;
 
     for i=2:fld(d, n)
@@ -101,7 +99,7 @@ does not alter the data order nor destroy the correlation structure.
 
 # Arguments
 - `Y`: observed measurements (`nxT`), where `n` and `T` are the number of series and observations.
-- `subsample`: `d` as a percentage of the original sample size. It is bounded between 0 and 1. If it is NaN it is automatically selected.
+- `subsample`: `d` as a percentage of the original sample size. It is bounded between 0 and 1.
 - `max_samples`: if `C(n*T,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples.
 
 # References
@@ -113,18 +111,11 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
     n, T = size(Y);
     nT = n*T;
 
-    # Error management
-    if isnan(subsample)
-        d = optimal_d(T, n);
-
-    # Error management
-    elseif subsample <= 0 || subsample >= 1
-        error("0 < subsample < 1");
+    # Check inputs
+    check_bounds(subsample, 0, 1);
 
     # Set d using subsample
-    else
-        d = Int64(floor(subsample*nT));
-    end
+    d = Int64(ceil(subsample*nT));
 
     # Error management
     if d == 0
@@ -132,8 +123,8 @@ function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samp
     end
 
     # Warning
-    if d/nT > 0.5
-        @warn("this version of the code might be unstable for `subsample` larger than 0.5!");
+    if subsample > 0.5
+        @warn "this algorithm might be unstable for `subsample` larger than 0.5!";
     end
 
     # Get vec(Y)
