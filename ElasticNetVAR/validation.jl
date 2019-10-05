@@ -71,12 +71,14 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
         end
 
         #=
-        Note that:
-        - For some extreme candidate values or validation_settings.subsample the estimation of the parameters could be problematic. In the worse case, this gives a DomainError.
-        - Generally, this happens when there are many consecutive missing values in the data (either generated via jackknife or real).
-        - This event is unlikely and - in my tests - visible with extreme settings of the block jackknife only.
+        Some candidate hyperparameters the estimation of the VAR can be unstable. This generally happens when:
+        - The candidates are extreme
+        - validation_settings.subsample is high and there is not enough shrinkage
 
+        A priori, there is not a simple way to construct a grid of candidates that does not result in errors in the ECM.
         The try-catch statement below handles this problem by skipping the candidate values that generate model instability.
+
+        Note that this issue is more likely to happen with the block-jackknife.
         =#
 
         try
@@ -95,16 +97,15 @@ function select_hyperparameters(validation_settings::ValidationSettings, γ_grid
 
         catch error_iter
 
-            # Update log
-            @error "$(round(now(), Dates.Second(1))) $(error_iter.msg)";
+            # Extract info on the error
+            error_ex, error_msg, error_stacktrace_array = error_info(error_iter);
+            error_stacktrace = join([*(string(error_stacktrace_array[error_line]), "\n") for error_line=1:length(error_stacktrace_array)]);
 
-            # Collect stacktrace
-            error_stacktrace = stacktrace(catch_backtrace());
+            # Update log
+            @error "$(round(now(), Dates.Second(1))) $error_msg \n $error_stacktrace";
 
             # The instability pops up in the update_loglik! function
-            error_info_1 = occursin("logdet", "$error_stacktrace");
-            error_info_2 = occursin("update_loglik!", "$error_stacktrace");
-            if isa(error_iter, DomainError) && error_info_1 && error_info_2
+            if isa(error_ex, DomainError) && occursin("logdet", "$error_stacktrace") && occursin("update_loglik!", "$error_stacktrace")
                 errors[iter] = Inf;
 
             # Any other error

@@ -32,6 +32,16 @@ check_bounds(X::Number, LB::Number, UB::Number) = X < LB || X > UB ? throw(Domai
 check_bounds(X::Number, LB::Number) = X < LB ? throw(DomainError) : nothing
 
 """
+    error_info(err::Exception)
+    error_info(err::RemoteException)
+
+Return error main information
+"""
+error_info(err::Exception) = (err, err.msg, stacktrace(catch_backtrace()));
+error_info(err::RemoteException) = (err.captured.ex, err.captured.ex.msg, [err.captured.processed_bt[i][1] for i=1:length(err.captured.processed_bt)]);
+
+
+"""
     mean_skipmissing(X::AbstractArray{Float64,1})
     mean_skipmissing(X::AbstractArray{Union{Missing, Float64},1})
 
