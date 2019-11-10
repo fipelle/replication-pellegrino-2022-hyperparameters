@@ -1,121 +1,40 @@
 """
-    select_hyperparameters(validation_settings::ValidationSettings, γ_grid::HyperGrid)
+    compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::Nothing)
+    compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::FloatVector)
 
-Select the tuning hyper-parameters for the elastic-net vector autoregression.
-
-# Arguments
-- `validation_settings`: ValidationSettings struct
-- `γ_grid`: HyperGrid struct
-
-# References
-Pellegrino (2019)
+Compute weights for the forecast error.
 """
-function select_hyperparameters(validation_settings::ValidationSettings, γ_grid::HyperGrid)
+compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::Nothing) = standardise_error ? std_skipmissing(data_presample).^2 : ones(n);
+compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::FloatVector) = standardise_error ? std_skipmissing(data_presample).^2 : weights;
 
-    # Check inputs
-    check_bounds(validation_settings.max_iter, 3);
-    check_bounds(validation_settings.max_iter, validation_settings.prerun);
-    check_bounds(validation_settings.n, 2); # It supports only multivariate models (for now ...)
+"""
+    compute_loss(weighted_resid::AbstractArray{Float64})
+    compute_loss(weighted_resid::AbstractArray{Missing})
+    compute_loss(weighted_resid::AbstractArray{Union{Float64, Missing}})
 
-    if length(γ_grid.p) != 2 || length(γ_grid.λ) != 2 || length(γ_grid.α) != 2 || length(γ_grid.β) != 2
-        error("The grids include more than two entries. They must include only the lower and upper bounds for the grids!")
-    end
+Compute loss function.
+"""
+compute_loss(weighted_resid::AbstractArray{Float64}) = [mean(mean(weighted_resid, dims=1), dims=2)[1], 0.0];
+compute_loss(weighted_resid::AbstractArray{Missing}) = [0.0, 1.0];
+function compute_loss(weighted_resid::AbstractArray{Union{Float64, Missing}})
+    loss = 0.0;
+    inactive_periods = 0.0;
+    T = size(weighted_resid,2);
 
-    check_bounds(γ_grid.p[2], γ_grid.p[1]);
-    check_bounds(γ_grid.λ[2], γ_grid.λ[1]);
-    check_bounds(γ_grid.α[2], γ_grid.α[1]);
-    check_bounds(γ_grid.β[2], γ_grid.β[1]);
-    check_bounds(γ_grid.p[1], 1);
-    check_bounds(γ_grid.λ[1], 0);
-    check_bounds(γ_grid.α[1], 0, 1);
-    check_bounds(γ_grid.α[2], 0, 1);
-    check_bounds(γ_grid.β[1], 1);
-
-    # Construct grid of hyperparameters - random search algorithm
-    errors     = zeros(γ_grid.draws);
-    candidates = zeros(4, γ_grid.draws);
-
-    for draw=1:γ_grid.draws
-        candidates[:,draw] = [rand(γ_grid.p[1]:γ_grid.p[2]),
-                              rand(Uniform(γ_grid.λ[1], γ_grid.λ[2])),
-                              rand(Uniform(γ_grid.α[1], γ_grid.α[2])),
-                              rand(Uniform(γ_grid.β[1], γ_grid.β[2]))];
-    end
-
-    if ~isnothing(validation_settings.log_folder_path)
-        io = open("$(validation_settings.log_folder_path)/status.txt", "w+");
-        global_logger(ConsoleLogger(io));
-    end
-
-    # Generate partitions for the block jackknife out-of-sample
-    if validation_settings.err_type == 3
-        jackknife_data = block_jackknife(validation_settings.Y, validation_settings.subsample);
-
-    # Generate partitions for the artificial jackknife
-    elseif validation_settings.err_type == 4
-        jackknife_data = artificial_jackknife(validation_settings.Y, validation_settings.subsample, validation_settings.max_samples);
-    end
-
-    for iter=1:γ_grid.draws
-
-        # Retrieve candidate hyperparameters
-        p, λ, α, β = candidates[:,iter];
-        p = Int64(p);
-
-        # Update log
-        if validation_settings.verb == true
-            @info "$(round(now(), Dates.Second(1))) select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws)), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
-            if ~isnothing(validation_settings.log_folder_path)
-                flush(io);
-            end
-        end
-
-        #=
-        Note that:
-        - For some extreme candidate values or validation_settings.subsample the estimation of the parameters could be problematic. In the worse case, this gives a DomainError.
-        - Generally, this happens when there are many consecutive missing values in the data (either generated via jackknife or real).
-        - This event is unlikely and - in my tests - visible with extreme settings of the block jackknife only.
-
-        The try-catch statement below handles this problem by skipping the candidate values that generate model instability.
-        =#
-
-        try
-
-            # In-sample or standard out-of-sample
-            if validation_settings.err_type <= 2
-                errors[iter], inactive_sample = fc_err(validation_settings, p, λ, α, β);
-                if inactive_sample == 1
-                    error("The validation sample is a matrix of missings!");
-                end
-
-            # Jackknife out-of-sample
-            else
-                errors[iter] = jackknife_err(validation_settings, jackknife_data, p, λ, α, β);
-            end
-
-        catch error_iter
-
-            # Update log
-            @error "$(round(now(), Dates.Second(1))) $(error_iter.msg)";
-
-            # Collect stacktrace
-            error_stacktrace = stacktrace(catch_backtrace);
-
-            # The instability pops up in the update_loglik! function
-            error_info_1 = occursin("logdet", "$error_stacktrace");
-            error_info_2 = occursin("update_loglik!", "$error_stacktrace");
-            if isa(error_iter, DomainError) && error_info_1 && error_info_2
-                errors[iter] = Inf;
-
-            # Any other error
-            else
-                rethrow(error_iter);
-            end
+    for t=1:T
+        weighted_resid_t = @view weighted_resid[:,t];
+        if sum(.~ismissing.(weighted_resid_t)) > 0
+            loss += mean_skipmissing(weighted_resid_t);
+        else
+            inactive_periods += 1.0;
         end
     end
 
-    # Return output
-    return candidates, errors;
+    if inactive_periods == T
+        return [0.0, 1.0];
+    else
+        return [loss/(T-inactive_periods), 0.0];
+    end
 end
 
 """
@@ -191,45 +110,6 @@ function fc_err(validation_settings::ValidationSettings, p::Int64, λ::Number, �
 end
 
 """
-    compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::Nothing)
-    compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::FloatVector)
-
-Compute weights for the forecast error.
-"""
-compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::Nothing) = standardise_error ? std_skipmissing(data_presample).^2 : ones(n);
-compute_loss_weights(data_presample::SubArray{Union{Float64,Missing}}, n::Int64, standardise_error::Bool, weights::FloatVector) = standardise_error ? std_skipmissing(data_presample).^2 : weights;
-
-"""
-    compute_loss(weighted_resid::AbstractArray{Float64})
-    compute_loss(weighted_resid::AbstractArray{Missing})
-    compute_loss(weighted_resid::AbstractArray{Union{Float64, Missing}})
-
-Compute loss function.
-"""
-compute_loss(weighted_resid::AbstractArray{Float64}) = [mean(mean(weighted_resid, dims=1), dims=2)[1], 0.0];
-compute_loss(weighted_resid::AbstractArray{Missing}) = [0.0, 1.0];
-function compute_loss(weighted_resid::AbstractArray{Union{Float64, Missing}})
-    loss = 0.0;
-    inactive_periods = 0.0;
-    T = size(weighted_resid,2);
-
-    for t=1:T
-        weighted_resid_t = @view weighted_resid[:,t];
-        if sum(.~ismissing.(weighted_resid_t)) > 0
-            loss += mean_skipmissing(weighted_resid_t);
-        else
-            inactive_periods += 1.0;
-        end
-    end
-
-    if inactive_periods == T
-        return [0.0, 1.0];
-    else
-        return [loss/(T-inactive_periods), 0.0];
-    end
-end
-
-"""
     jackknife_err(validation_settings::ValidationSettings, jackknife_data::JArray{Float64, 3}, p::Int64, λ::Number, α::Number, β::Number)
 
 Return the jackknife out-of-sample error.
@@ -271,4 +151,125 @@ function jackknife_err(validation_settings::ValidationSettings, jackknife_data::
 
     # Return output
     return loss;
+end
+
+"""
+    select_hyperparameters(validation_settings::ValidationSettings, γ_grid::HyperGrid)
+
+Select the tuning hyper-parameters for the elastic-net vector autoregression.
+
+# Arguments
+- `validation_settings`: ValidationSettings struct
+- `γ_grid`: HyperGrid struct
+
+# References
+Pellegrino (2019)
+"""
+function select_hyperparameters(validation_settings::ValidationSettings, γ_grid::HyperGrid)
+
+    # Check inputs
+    check_bounds(validation_settings.max_iter, 3);
+    check_bounds(validation_settings.max_iter, validation_settings.prerun);
+    check_bounds(validation_settings.n, 2); # It supports only multivariate models (for now ...)
+
+    if length(γ_grid.p) != 2 || length(γ_grid.λ) != 2 || length(γ_grid.α) != 2 || length(γ_grid.β) != 2
+        error("The grids include more than two entries. They must include only the lower and upper bounds for the grids!")
+    end
+
+    check_bounds(γ_grid.p[2], γ_grid.p[1]);
+    check_bounds(γ_grid.λ[2], γ_grid.λ[1]);
+    check_bounds(γ_grid.α[2], γ_grid.α[1]);
+    check_bounds(γ_grid.β[2], γ_grid.β[1]);
+    check_bounds(γ_grid.p[1], 1);
+    check_bounds(γ_grid.λ[1], 0);
+    check_bounds(γ_grid.α[1], 0, 1);
+    check_bounds(γ_grid.α[2], 0, 1);
+    check_bounds(γ_grid.β[1], 1);
+
+    # Construct grid of hyperparameters - random search algorithm
+    errors     = zeros(γ_grid.draws);
+    candidates = zeros(4, γ_grid.draws);
+
+    for draw=1:γ_grid.draws
+        candidates[:,draw] = [rand(γ_grid.p[1]:γ_grid.p[2]),
+                              rand(Uniform(γ_grid.λ[1], γ_grid.λ[2])),
+                              rand(Uniform(γ_grid.α[1], γ_grid.α[2])),
+                              rand(Uniform(γ_grid.β[1], γ_grid.β[2]))];
+    end
+
+    if ~isnothing(validation_settings.log_folder_path)
+        io = open("$(validation_settings.log_folder_path)/status.txt", "w+");
+        global_logger(ConsoleLogger(io));
+    end
+
+    # Generate partitions for the block jackknife out-of-sample
+    if validation_settings.err_type == 3
+        jackknife_data = block_jackknife(validation_settings.Y, validation_settings.subsample);
+
+    # Generate partitions for the artificial jackknife
+    elseif validation_settings.err_type == 4
+        jackknife_data = artificial_jackknife(validation_settings.Y, validation_settings.subsample, validation_settings.max_samples);
+    end
+
+    for iter=1:γ_grid.draws
+
+        # Retrieve candidate hyperparameters
+        p, λ, α, β = candidates[:,iter];
+        p = Int64(p);
+
+        # Update log
+        if validation_settings.verb == true
+            @info "$(round(now(), Dates.Second(1))) select_hyperparameters (error estimator $(validation_settings.err_type)) > running iteration $iter (out of $(γ_grid.draws)), γ=($(round(p,digits=3)), $(round(λ,digits=3)), $(round(α,digits=3)), $(round(β,digits=3)))";
+            if ~isnothing(validation_settings.log_folder_path)
+                flush(io);
+            end
+        end
+
+        #=
+        Some candidate hyperparameters the estimation of the VAR can be unstable. This generally happens when:
+        - The candidates are extreme
+        - validation_settings.subsample is high and there is not enough shrinkage
+
+        A priori, there is not a simple way to construct a grid of candidates that does not result in errors in the ECM.
+        The try-catch statement below handles this problem by skipping the candidate values that generate model instability.
+
+        Note that this issue is more likely to happen with the block-jackknife.
+        =#
+
+        try
+
+            # In-sample or standard out-of-sample
+            if validation_settings.err_type <= 2
+                errors[iter], inactive_sample = fc_err(validation_settings, p, λ, α, β);
+                if inactive_sample == 1
+                    error("The validation sample is a matrix of missings!");
+                end
+
+            # Jackknife out-of-sample
+            else
+                errors[iter] = jackknife_err(validation_settings, jackknife_data, p, λ, α, β);
+            end
+
+        catch error_iter
+
+            # Extract info on the error
+            error_ex, error_msg, error_stacktrace_array = error_info(error_iter);
+            error_stacktrace = join([*(string(error_stacktrace_array[error_line]), "\n") for error_line=1:length(error_stacktrace_array)]);
+
+            # Update log
+            @error "$(round(now(), Dates.Second(1))) $error_msg \n $error_stacktrace";
+
+            # The instability pops up in the update_loglik! function
+            if isa(error_ex, DomainError) && occursin("logdet", "$error_stacktrace") && occursin("update_loglik!", "$error_stacktrace")
+                errors[iter] = Inf;
+
+            # Any other error
+            else
+                rethrow(error_iter);
+            end
+        end
+    end
+
+    # Return output
+    return candidates, errors;
 end
