@@ -7,19 +7,6 @@ module ElasticNetVAR
 	using LinearAlgebra, Distributions, Statistics;
 	using TSAnalysis;
 
-	# Patch (TODO: update TSAnalysis and remove block)
-	check_bounds 	  = TSAnalysis.check_bounds;
-	isnothing 		  = TSAnalysis.isnothing;
-	error_info 		  = TSAnalysis.error_info;
-	verb_message      = TSAnalysis.verb_message;
-	interpolate 	  = TSAnalysis.interpolate;
-	soft_thresholding = TSAnalysis.soft_thresholding;
-	isconverged 	  = TSAnalysis.isconverged;
-	FloatVector 	  = TSAnalysis.FloatVector;
-	FloatArray 		  = TSAnalysis.FloatArray;
-	SymMatrix 		  = TSAnalysis.SymMatrix;
-	DiagMatrix 		  = TSAnalysis.DiagMatrix;
-
 	# Aliases for TSAnalysis
 	compute_J1 = TSAnalysis.compute_J1;
 	backwards_pass = TSAnalysis.backwards_pass;

@@ -6,16 +6,25 @@ using Random;
 using FileIO, XLSX, DataFrames, BSON;
 
 # Load data
-data_raw = DataFrame(XLSX.readtable("./data/data.xlsx", "weekly_returns")...);
-date = data_raw[3:end,1];
-data = data_raw[3:end,2:end] |> JArray{Float64,2};
+data_raw = DataFrame(XLSX.readtable("./data/data.xlsx", "FX")...);
+
+# Data
+data = data_raw[3:end, 3:end] |> JArray{Float64,2};
+
+# Store dates
+date = data_raw[3:end,2];
+
+# Skip EA19 and New Zealand
+data = data[:, [1;2;4;collect(6:size(data,2))]] |> JArray{Float64,2};
+
+# Transpose data
 data = permutedims(data);
 
 # End presample
-end_ps = 416; # 2006-12-29
+end_ps = 80; # 1979-12-31
 
 # End validation sample
-end_vs = 833; # 2014-12-24
+end_vs = 160; # 1999-12-31
 
 # Data used for validation
 data_validation = data[:, 1:end_vs];
@@ -26,7 +35,7 @@ n, T = size(data_validation);
 d = optimal_d(n, T);
 
 # Set options for the selection problem
-p_grid=[1, 4]; λ_grid=[1e-4, 4]; α_grid=[0, 1]; β_grid=[1, 4];
+p_grid=[1, 5]; λ_grid=[1e-4, 5]; α_grid=[0, 1]; β_grid=[1, 5];
 vs = ValidationSettings(4, data_validation, t0=end_ps, subsample=d/(n*T), max_samples=5000, log_folder_path=".");
 hg = HyperGrid(p_grid, λ_grid, α_grid, β_grid, 1000);
 
