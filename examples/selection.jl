@@ -5,24 +5,17 @@ using Distributed;
 using Random;
 using FileIO, XLSX, DataFrames, BSON;
 
-# Load data FX
+# Load data
 data_raw = DataFrame(XLSX.readtable("./data/data.xlsx", "FX")...);
-data_FX = data_raw[3:end, 3:end] |> JArray{Float64,2};
-data_FX = data_FX[:, [1;2;4;collect(6:size(data_FX,2))]] |> JArray{Float64,2}; # Skip EA19 and New Zealand
 
-# Load data GDP
-data_raw = DataFrame(XLSX.readtable("./data/data.xlsx", "Real")...);
-data_GDP = data_raw[3:end, 3:end] |> JArray{Float64,2};
-data_GDP = data_GDP[:, [1;2;4;collect(6:size(data_GDP,2))]] |> JArray{Float64,2}; # Skip EA19 and New Zealand
-
-# Merge
-data = [data_FX data_GDP] |> JArray{Float64,2};
+# Data
+data = data_raw[3:end, 3:end] |> JArray{Float64,2};
 
 # Store dates
 date = data_raw[3:end,2];
 
-# Weights
-weights = [ones(size(data_FX,2)); zeros(size(data_GDP,2))];
+# Skip EA19 and New Zealand
+data = data[:, [1;2;4;collect(6:size(data,2))]] |> JArray{Float64,2};
 
 # Transpose data
 data = permutedims(data);
@@ -43,7 +36,7 @@ d = optimal_d(n, T);
 
 # Set options for the selection problem
 p_grid=[1, 5]; λ_grid=[1e-4, 5]; α_grid=[0, 1]; β_grid=[1, 5];
-vs = ValidationSettings(4, data_validation, t0=end_ps, subsample=d/(n*T), max_samples=5000, weights=weights, log_folder_path=".");
+vs = ValidationSettings(4, data_validation, t0=end_ps, subsample=d/(n*T), max_samples=5000, log_folder_path=".");
 hg = HyperGrid(p_grid, λ_grid, α_grid, β_grid, 1000);
 
 # Run algorithm
