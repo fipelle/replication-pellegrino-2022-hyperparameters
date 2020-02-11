@@ -1,6 +1,8 @@
 # ElasticNetVAR.jl
 Selecting time-series hyperparameters with the artificial jackknife: Elastic-net VAR application.
 
+<img src="./img/heading.pdf">
+
 ## Description
 This repository contains code related to “Selecting time-series hyperparameters with the artificial jackknife”.
 
