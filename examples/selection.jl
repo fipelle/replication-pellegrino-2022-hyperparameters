@@ -1,6 +1,6 @@
 # Libraries
 using Distributed;
-@everywhere include("./../ElasticNetVAR/ElasticNetVAR.jl");
+@everywhere include("./../src/ElasticNetVAR.jl");
 @everywhere using Main.ElasticNetVAR;
 using Random;
 using FileIO, XLSX, DataFrames, BSON;
