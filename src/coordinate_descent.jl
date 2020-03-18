@@ -1,10 +1,10 @@
 """
     ijth_coordinate_update!(i::Int64, j::Int64, T_minus_p::Int64, estim_settings::EstimSettings, Y_i::SubArray{Float64}, Y_lagged::FloatArray, Ψ::FloatArray)
 
-Update the (i,j)-th element of Ψ the coordinate descent algorithm (Friedman et al., 2010) as in Pellegrino (2019).
+Update the (i,j)-th element of Ψ the coordinate descent algorithm (Friedman et al., 2010) as in Pellegrino (2020).
 
 # References
-Friedman et al. (2010) and Pellegrino (2019)
+Friedman et al. (2010) and Pellegrino (2020)
 """
 function ijth_coordinate_update!(i::Int64, j::Int64, T_minus_p::Int64, estim_settings::EstimSettings, Y_i::SubArray{Float64}, Y_lagged::FloatArray, Ψ::FloatArray)
 
@@ -34,13 +34,13 @@ end
 """
     coordinate_descent(estim_settings::EstimSettings)
 
-Estimate an elastic-net VAR(p) with the coordinate descent algorithm (Friedman et al., 2010) as in Pellegrino (2019).
+Estimate an elastic-net VAR(p) with the coordinate descent algorithm (Friedman et al., 2010) as in Pellegrino (2020).
 
 # Arguments
 - `estim_settings`: settings used for the estimation
 
 # References
-Friedman et al. (2010) and Pellegrino (2019)
+Friedman et al. (2010) and Pellegrino (2020)
 """
 function coordinate_descent(estim_settings::EstimSettings)
 

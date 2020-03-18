@@ -104,13 +104,13 @@ end
 """
     ecm(estim_settings::EstimSettings)
 
-Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2019).
+Estimate an elastic-net VAR(p) using the ECM algorithm in Pellegrino (2020).
 
 # Arguments
 - `estim_settings`: settings used for the estimation
 
 # References
-Pellegrino (2019)
+Pellegrino (2020)
 """
 function ecm(estim_settings::EstimSettings)
 

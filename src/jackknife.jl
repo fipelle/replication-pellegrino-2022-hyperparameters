@@ -11,7 +11,7 @@ with a given size.
 - `subsample`: block size as a percentage of the original sample size. It is bounded between 0 and 1.
 
 # References
-Kunsch (1989) and Pellegrino (2019)
+Kunsch (1989) and Pellegrino (2020)
 """
 function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 
@@ -90,7 +90,7 @@ end
 """
     artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samples::Int64)
 
-Generate artificial jackknife samples as in Pellegrino (2019).
+Generate artificial jackknife samples as in Pellegrino (2020).
 
 The artificial delete-d jackknife is an extension of the delete-d jackknife for dependent data problems.
 This technique replaces the actual data removal step with a fictitious deletion, which consists of
@@ -103,7 +103,7 @@ does not alter the data order nor destroy the correlation structure.
 - `max_samples`: if `C(n*T,d)` is large, artificial_jackknife would generate `max_samples` jackknife samples.
 
 # References
-Pellegrino (2019)
+Pellegrino (2020)
 """
 function artificial_jackknife(Y::JArray{Float64,2}, subsample::Float64, max_samples::Int64)
 
