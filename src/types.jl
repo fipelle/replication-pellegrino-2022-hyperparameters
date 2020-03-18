@@ -15,7 +15,7 @@ Define an immutable structure used to initialise the estimation routine.
 - `λ`: overall shrinkage hyper-parameter for the elastic-net penalty
 - `α`: weight associated to the LASSO component of the elastic-net penalty
 - `β`: additional shrinkage for distant lags (p>1)
-- `Γ`: Diagonal matrix used to input the hyperparameters in the estimation - see Pellegrino (2019) for details
+- `Γ`: Diagonal matrix used to input the hyperparameters in the estimation - see Pellegrino (2020) for details
 - `ε`: Small number (default: 1e-8)
 - `tol`: tolerance used to check convergence (default: 1e-3)
 - `max_iter`: maximum number of iterations for the estimation algorithm (default: 1000)
