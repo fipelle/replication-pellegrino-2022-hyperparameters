@@ -49,7 +49,7 @@ function block_jackknife(Y::JArray{Float64,2}, subsample::Float64)
 end
 
 """
-    objfun_optimal_d(n::Int64, T::Int64)
+    optimal_d(n::Int64, T::Int64)
 
 Select the optimal value for d.
 
@@ -57,7 +57,7 @@ Select the optimal value for d.
 - `n`: Number of series
 - `T`: Number of observations
 """
-function optimal_d(n, T)
+function optimal_d(n::Int64, T::Int64)
     objfun_array = zeros(n*T);
 
     for d=1:fld(n*T,2)
