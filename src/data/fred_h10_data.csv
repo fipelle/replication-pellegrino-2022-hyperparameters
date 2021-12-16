@@ -1,0 +1,24 @@
+﻿fred_ticker,mnemonic,description,transform,include
+DEXUSAL,australia,U.S. / Australia Foreign Exchange Rate,1,1
+DEXBZUS,brazil,Brazil / U.S. Foreign Exchange Rate,0,1
+DEXCAUS,canada,Canada / U.S. Foreign Exchange Rate,0,1
+DEXCHUS,china,China / U.S. Foreign Exchange Rate,0,0
+DEXDNUS,denmark,Denmark / U.S. Foreign Exchange Rate,0,1
+DEXUSEU,ea,U.S. / Euro Foreign Exchange Rate,1,1
+DEXHKUS,hong_kong,Hong Kong / U.S. Foreign Exchange Rate,0,0
+DEXINUS,india,India / U.S. Foreign Exchange Rate,0,1
+DEXJPUS,japan,Japan / U.S. Foreign Exchange Rate,0,1
+DEXMAUS,malaysia,Malaysia / U.S. Foreign Exchange Rate,0,0
+DEXMXUS,mexico,Mexico / U.S. Foreign Exchange Rate,0,1
+DEXUSNZ,new_zealand,U.S. / New Zealand Foreign Exchange Rate,1,1
+DEXNOUS,norway,Norway / U.S. Foreign Exchange Rate,0,1
+DEXSIUS,singapore,Singapore / U.S. Foreign Exchange Rate,0,1
+DEXSFUS,south_africa,South Africa / U.S. Foreign Exchange Rate,0,1
+DEXKOUS,south_korea,South Korea / U.S. Foreign Exchange Rate,0,1
+DEXSLUS,sri_lanka,Sri Lanka / U.S. Foreign Exchange Rate,0,0
+DEXSDUS,sweden,Sweden / U.S. Foreign Exchange Rate,0,1
+DEXSZUS,switzerland,Switzerland / U.S. Foreign Exchange Rate,0,1
+DEXTAUS,taiwan,Taiwan / U.S. Foreign Exchange Rate,0,1
+DEXTHUS,thailand,Thailand / U.S. Foreign Exchange Rate,0,1
+DEXUSUK,uk,U.S. / U.K. Foreign Exchange Rate,1,1
+DEXVZUS,venezuela,Venezuela / U.S. Foreign Exchange Rate,0,0
