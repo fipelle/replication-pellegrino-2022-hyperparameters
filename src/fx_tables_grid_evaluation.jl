@@ -2,9 +2,7 @@
 using DataFrames, Dates, FileIO, JLD;
 using Contour, DecisionTree, Random, StableRNGs;
 using PGFPlotsX, LaTeXStrings;
-include("./../src/MessyTimeSeriesOptim.jl");
-using Main.MessyTimeSeriesOptim;
-using TSAnalysis, Statistics;
+using MessyTimeSeries, MessyTimeSeriesOptim, Statistics;
 
 overall_mse  = Matrix{Float64}(undef, 5, 2);
 model_prefix = "VAR";

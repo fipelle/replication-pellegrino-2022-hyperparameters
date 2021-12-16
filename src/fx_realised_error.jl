@@ -1,7 +1,6 @@
 # Libraries
-include("./../src/MessyTimeSeriesOptim.jl");
 include("./get_h10_dataset.jl");
-using Main.MessyTimeSeriesOptim;
+using MessyTimeSeriesOptim;
 using FileIO, JLD;
 using Random, Statistics;
 

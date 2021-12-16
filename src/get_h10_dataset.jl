@@ -1,4 +1,4 @@
-using CSV, DataFrames, Dates, TSAnalysis;
+using CSV, DataFrames, Dates, MessyTimeSeries;
 using FredData: get_data, Fred;
 
 """

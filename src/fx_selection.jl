@@ -1,7 +1,6 @@
 # Libraries
 using Distributed;
-@everywhere include("./../src/MessyTimeSeriesOptim.jl");
-@everywhere using Main.MessyTimeSeriesOptim;
+@everywhere using MessyTimeSeriesOptim;
 include("./get_h10_dataset.jl");
 using FileIO, JLD;
 using Random, Statistics;

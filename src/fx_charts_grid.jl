@@ -1,9 +1,7 @@
 # Libraries
 using DataFrames, Dates, FileIO, JLD;
-using Contour, DecisionTree, Random, StableRNGs, Statistics, TSAnalysis;
+using Contour, DecisionTree, Random, StableRNGs, Statistics, MessyTimeSeries, MessyTimeSeriesOptim;
 using PGFPlotsX, LaTeXStrings;
-include("./../src/MessyTimeSeriesOptim.jl");
-using Main.MessyTimeSeriesOptim;
 
 function learn_grid_structure(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64}, rng::AbstractRNG=StableRNG(1), n_trees::Int64=1000)
 
