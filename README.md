@@ -5,6 +5,32 @@ This article proposes a generalisation of the delete-*d* jackknife to solve hype
 
 <img src="./heading.svg">
 
+## Examples
+
+### Artificial delete-*d* jackknife selection
+
+#### Vector autoregression
+```console
+> julia ./src/fx_selection.jl true 4 "./VAR_output"
+```
+
+#### Vector moving average
+```console
+> julia ./src/fx_selection.jl false 4 "./VMA_output"
+```
+
+### Realised error
+
+#### Vector autoregression
+```console
+> julia ./src/fx_realised_error.jl true "./VAR_output"
+```
+
+#### Vector moving average
+```console
+> julia ./src/fx_realised_error.jl false "./VMA_output"
+```
+
 ## Citation
 If you use this code or build upon it, please use the following (bibtex) citation:
 ```bibtex
