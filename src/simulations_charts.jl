@@ -3,7 +3,7 @@ using PGFPlotsX, LaTeXStrings;
 using MessyTimeSeries: no_combinations;
 using Statistics;
 
-# Custom functions for probabilities
+# Custom functions for AJK and BJK probabilities
 
 # - AJK
 compute_ajk_cases(nT::Int64, d::Int64, k::Int64) = no_combinations(d, k)*no_combinations(nT-d, d-k);
@@ -14,25 +14,14 @@ compute_bjk_ith_cases(i::Int64, no_subsamples::Int64, c::Int64, k::Int64) = (no_
 compute_bjk_probability(no_subsamples::Int64, c::Int64, k::Int64) = mapreduce(i -> compute_bjk_ith_cases(i, no_subsamples, c, k), +, 1:no_subsamples)/(no_subsamples^2);
 
 #=
-Custom functions for jaccard indices
+Custom functions to compute the expected value of the Jaccard indices
 =#
 
-function expected_jaccard_ajk(nT::Int64, d::Int64)
-  output = 0.0;
-  for k=1:d-1
-    output += compute_ajk_probability(nT, d, k)*k/(2*d-k);
-  end
-  return output;
-end
+# - Main methods
+expected_jaccard_ajk(nT::Int64, d::Int64) = mapreduce(k -> k/(2*d-k)*compute_ajk_probability(nT, d, k), +, 1:d-1);
+expected_jaccard_bjk(T::Int64, c::Int64)  = mapreduce(k -> k/(2*c-k)*compute_bjk_probability(T-c+1, c, k), +, 1:c-1);
 
-function expected_jaccard_bjk(T::Int64, c::Int64)
-  output = 0.0;
-  for k=1:c-1
-    output += compute_bjk_probability(T-c+1, c, k)*k/(2*c-k);
-  end
-  return output;
-end
-
+# - Promotion rules
 expected_jaccard_ajk(nT::Real, d::Real) = expected_jaccard_ajk(Int64(nT), Int64(floor(d)));
 expected_jaccard_bjk(T::Real, c::Real) = expected_jaccard_bjk(Int64(T), Int64(floor(c)));
 
@@ -58,7 +47,7 @@ push!(PGFPlotsX.CUSTOM_PREAMBLE,
 gpr = Array{Any,1}(undef, 3);
 
 # Loop over c
-for (i, c) in enumerate([10, 15, 20])
+for (i, c) in enumerate([5, 10, 15])
 
     # n,T grids
     n_grid = range(5, stop=50, length=10);
