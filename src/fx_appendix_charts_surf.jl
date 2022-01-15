@@ -235,5 +235,5 @@ fig = @pgf TikzPicture(GroupPlot(
     gpr[1][2:end]..., gpr[2][2:end]...,)
 )
 
-pgfsave("./img/appendix/$(model_prefix)_$(adj_bjk)_surface.pdf", fig);
+pgfsave("./img/appendix/surface_$(model_prefix)_$(adj_bjk).pdf", fig);
 #fig
