@@ -34,10 +34,10 @@ This article proposes a generalisation of the delete-*d* jackknife to solve hype
 ## Citation
 If you use this code or build upon it, please use the following (bibtex) citation:
 ```bibtex
-@misc{pellegrino2021selecting,
+@misc{pellegrino2022selecting,
       title={Selecting time-series hyperparameters with the artificial jackknife}, 
       author={Filippo Pellegrino},
-      year={2021},
+      year={2022},
       eprint={2002.04697},
       archivePrefix={arXiv},
       primaryClass={stat.ME}
