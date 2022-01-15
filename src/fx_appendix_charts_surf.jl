@@ -78,8 +78,8 @@ t0 = 52;
 adj_bjk = true;
 
 # Interpolated grid
-x_grid = range(0.001, stop=1, length=100);
-y_grid = range(0.001, stop=20, length=100);
+x_grid = range(0.001, stop=1, length=50);
+y_grid = range(0.001, stop=20, length=50);
 
 # Loop over each model
 for i in 1:5
