@@ -60,18 +60,6 @@ end
 
 # Models and methods
 axs_titles = ["In-sample", "Pseudo out-of-sample", "Block jackknife (c/T=0.10)", "Block jackknife (c/T=0.20)", "Artificial jackknife"];
-model_prefix = "VAR";
-
-if model_prefix == "VAR"
-    ztick_distance = 5
-    zmin_array = [0; 49; 50; 50; 59];
-    zmax_array = [70; 70; 65; 63; 68];
-
-else
-    ztick_distance = 10
-    zmin_array = [0; 10; 30; 30; 50];
-    zmax_array = [120; 100; 70; 60; 125];
-end
 
 # BJK specific options
 t0 = 52;
@@ -82,68 +70,78 @@ x_grid = range(0.001, stop=1, length=50);
 y_grid = range(0.001, stop=20, length=50);
 
 # Loop over each model
-for i in 1:5
+for (j, model_prefix) in enumerate(["VAR", "VMA"])
 
-    #=
-    ----------------------------------------------------------------------------------------------------
-    Load input data and interpolate grid
-    ----------------------------------------------------------------------------------------------------
-    =#
-
-    # Raw output
-
-    if i <= 3
-        err_type = i;
-    else
-        err_type = i-1;
-    end
-
-    if err_type != 3
-        f = load("./$(model_prefix)_output/err_type_$(err_type).jld");
-    else
-        f = load("./$(model_prefix)_output/3_$(10+(i-3)*10)pct/err_type_$(err_type).jld");
-    end
-
-    candidates = f["candidates"];
-    errors = f["errors"];
+    if model_prefix == "VAR"
+        ztick_distance = 5
+        zmin_array = [0; 49; 50; 50; 59];
+        zmax_array = [70; 70; 65; 63; 68];
     
-    if err_type == 3
-        if i==3
-            bjk_sample = block_jackknife(f["selection_sample"], 0.1);
+    else
+        ztick_distance = 10
+        zmin_array = [0; 10; 30; 30; 50];
+        zmax_array = [120; 100; 70; 60; 125];
+    end
+
+    for i in 1:5
+
+        #=
+        ----------------------------------------------------------------------------------------------------
+        Load input data and interpolate grid
+        ----------------------------------------------------------------------------------------------------
+        =#
+
+        # Raw output
+
+        if i <= 3
+            err_type = i;
         else
-            bjk_sample = block_jackknife(f["selection_sample"], 0.2);
+            err_type = i-1;
         end
 
-        T_validation = size(bjk_sample, 2)-t0;
-        missings_after_t0 = [sum(sum(ismissing.(bjk_sample[:, t0+1:end, i]), dims=1) .== size(bjk_sample, 1)) for i=1:size(bjk_sample, 3)];
-        errors .*= mean(T_validation ./ (T_validation .- missings_after_t0));
-    end
+        if err_type != 3
+            f = load("./$(model_prefix)_output/err_type_$(err_type).jld");
+        else
+            f = load("./$(model_prefix)_output/3_$(10+(i-3)*10)pct/err_type_$(err_type).jld");
+        end
 
-    # Explored grid
-    x = candidates[3,:];
-    y = candidates[2,:] .* (candidates[4,:].^(candidates[1,:].-1));
-    z = errors;
+        candidates = f["candidates"];
+        errors = f["errors"];
+        
+        if err_type == 3
+            if i==3
+                bjk_sample = block_jackknife(f["selection_sample"], 0.1);
+            else
+                bjk_sample = block_jackknife(f["selection_sample"], 0.2);
+            end
 
-    # Learn structure of the grid and interpolate z
-    trees = learn_grid_structure(x, y, z);
-    z_grid = [interpolate_z(xx, yy, trees) for xx in x_grid, yy in y_grid];
+            T_validation = size(bjk_sample, 2)-t0;
+            missings_after_t0 = [sum(sum(ismissing.(bjk_sample[:, t0+1:end, i]), dims=1) .== size(bjk_sample, 1)) for i=1:size(bjk_sample, 3)];
+            errors .*= mean(T_validation ./ (T_validation .- missings_after_t0));
+        end
 
-    # Reference points for zmax and zmin in the chart
-    z_min_chart = zmin_array[i];
-    z_max_chart = zmax_array[i];
+        # Explored grid
+        x = candidates[3,:];
+        y = candidates[2,:] .* (candidates[4,:].^(candidates[1,:].-1));
+        z = errors;
 
-    # Meta source: minimum meta_source* is equal to 0
-    min_z = min(minimum(z), minimum(z_grid));
-    meta_source = z_grid .- min_z;
-    meta_source_scatter = z .- min_z;
+        # Learn structure of the grid and interpolate z
+        trees = learn_grid_structure(x, y, z);
+        z_grid = [interpolate_z(xx, yy, trees) for xx in x_grid, yy in y_grid];
 
-    # Meta source: maximum meta_source* is equal to 1
-    max_meta = max(maximum(meta_source), maximum(meta_source_scatter));
-    meta_source ./= max_meta;
-    meta_source_scatter ./= max_meta;
+        # Reference points for zmax and zmin in the chart
+        z_min_chart = zmin_array[i];
+        z_max_chart = zmax_array[i];
 
-    # Loop over subplot rows
-    for j=1:2
+        # Meta source: minimum meta_source* is equal to 0
+        min_z = min(minimum(z), minimum(z_grid));
+        meta_source = z_grid .- min_z;
+        meta_source_scatter = z .- min_z;
+
+        # Meta source: maximum meta_source* is equal to 1
+        max_meta = max(maximum(meta_source), maximum(meta_source_scatter));
+        meta_source ./= max_meta;
+        meta_source_scatter ./= max_meta;
 
         #=
         ----------------------------------------------------------------------------------------------------
@@ -151,17 +149,11 @@ for i in 1:5
         ----------------------------------------------------------------------------------------------------
         =#
 
-        if j == 1
-            x_dir_settings = "normal";
-            view_angle = (45, 15);
+        x_dir_settings = "normal";
+        view_angle = (45, 15);
         
-        elseif j == 2
-            x_dir_settings = "reverse";
-            view_angle = (90, 90);
-        end
-
         subtitle = ifelse(j==1, axs_titles[i], "");
-        axis_on_top = ifelse(j==2, "true", "false");
+        axis_on_top = "false";
         colormap_settings = ifelse((j==1) & (i==5), "true", "false");
         z_label_name = ifelse(i==2, L"Loss", "");
 
@@ -171,17 +163,8 @@ for i in 1:5
         ----------------------------------------------------------------------------------------------------
         =#
         
-        if j==1
-            subplot_p1 = @pgf Plot3({surf, point_meta="explicit"}, Coordinates(x_grid, y_grid, z_grid, meta=meta_source));
-        elseif j==2
-            subplot_p1 = @pgf Plot3({contour_filled="{number=30, labels={false}}", shader="interp", "patch type"="bilinear", point_meta="explicit"}, Coordinates(x_grid, y_grid, z_grid, meta=meta_source));
-        end
-        
-        if j == 1
-            subplot_p2 = @pgf Plot3({only_marks, scatter, mark_size="1pt", point_meta="explicit"}, Coordinates(x, y, z_min_chart .* ones(length(x)), meta=meta_source_scatter));
-        elseif j == 2
-            subplot_p2 = @pgf Plot3({only_marks, scatter, mark_size="0.75pt", point_meta="explicit", opacity="50"}, Coordinates(x, y, z, meta=meta_source_scatter));
-        end
+        subplot_p1 = @pgf Plot3({surf, point_meta="explicit"}, Coordinates(x_grid, y_grid, z_grid, meta=meta_source));        
+        subplot_p2 = @pgf Plot3({only_marks, scatter, mark_size="1pt", point_meta="explicit"}, Coordinates(x, y, z_min_chart .* ones(length(x)), meta=meta_source_scatter));
 
         gpr[j][i] = @pgf Axis(
         {
@@ -235,5 +218,5 @@ fig = @pgf TikzPicture(GroupPlot(
     gpr[1][2:end]..., gpr[2][2:end]...,)
 )
 
-pgfsave("./img/appendix/surface_$(model_prefix)_$(adj_bjk).pdf", fig);
+pgfsave("./img/appendix/surface_$(adj_bjk).pdf", fig);
 #fig
